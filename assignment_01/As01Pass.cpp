@@ -23,10 +23,6 @@
 
 using namespace llvm;
 
-
-
-
-
 // 𝑥 + 0 = 0 + 𝑥 --> 𝑥
 // 𝑥 × 1 = 1 × 𝑥 --> 𝑥
 bool AlgebraicIdentity(BasicBlock &B){
@@ -41,15 +37,42 @@ bool AlgebraicIdentity(BasicBlock &B){
             
             // get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-
-            if ( C1 && C1->getValue().isZero() ) {
+            /*
+            */
+            if ( C1 && !C2 && C1->getValue().isZero() ) {
                 outs() << "Found a zero\n";
-            }
-            if ( C2 && C2->getValue().isZero() ) {
+                Value *op2 = I.getOperand(1);
+                I.replaceAllUsesWith(op2);
+                // I.eraseFromParent();
+            } 
+            else if ( C2 && !C1 && C2->getValue().isZero() ) {
                 outs() << "Found a zero\n";
+                Value *op1 = I.getOperand(0);
+                I.replaceAllUsesWith(op1);
+                // I.eraseFromParent();
             }
         }
         
+        if (I.getOpcode() == Instruction::Mul) {
+            outs() << "Found a mul\n";
+            
+            // get the operands of the instruction
+            ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
+            /*
+            */
+            if ( C1 && !C2 && C1->getValue().isOne() ) {
+                outs() << "Found a one\n";
+                Value *op2 = I.getOperand(1);
+                I.replaceAllUsesWith(op2);
+                // I.eraseFromParent();
+            } 
+            else if ( C2 && !C1 && C2->getValue().isOne() ) {
+                outs() << "Found a one\n";
+                Value *op1 = I.getOperand(0);
+                I.replaceAllUsesWith(op1);
+                // I.eraseFromParent();
+            }
+        }
 
 
 
