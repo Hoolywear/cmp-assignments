@@ -1,6 +1,3 @@
-/*
-* 	Algebraic Identity Pass
-*/
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -9,7 +6,7 @@
 using namespace llvm;
 
 /*
-*   get the number of the operand and replace all the uses of the instruction with the operand
+*   Get the operand number and the instruction and replace all uses with op
 */
 void replaceUses(int opNumber, Instruction &I){
     Value *op = I.getOperand(opNumber);
@@ -18,7 +15,7 @@ void replaceUses(int opNumber, Instruction &I){
 }
 
 /*
-* The function implements the Algebric Identity optimization pass
+* 	Algebraic Identity Pass
 */
 bool AlgebraicIdentity(BasicBlock &B){
 
@@ -28,9 +25,9 @@ bool AlgebraicIdentity(BasicBlock &B){
 
         // Check if the instruction is an add
         if (I.getOpcode() == Instruction::Add) {
-            // get the operands of the instruction
+            // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-            // check if the first operand is zero and the second one is not a constant value
+            // Check if the first operand is zero and the second one is not a constant
             if ( C1 && !C2 && C1->getValue().isZero() ) {
                 replaceUses(1, I);
             }
@@ -38,11 +35,11 @@ bool AlgebraicIdentity(BasicBlock &B){
                 replaceUses(0, I);
             }
         }
-        // check if the instruction is a mul
+        // Check if the instruction is a mul
         if (I.getOpcode() == Instruction::Mul) {
-            // get the operands of the instruction
+            // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-            // check if the first operand is zero and the second one is not a constant value
+            // Check if the first operand is zero and the second one is not a constant
             if ( C1 && !C2 && C1->getValue().isOne() ) {
                 replaceUses(1, I);
             } 
@@ -56,7 +53,7 @@ bool AlgebraicIdentity(BasicBlock &B){
 
 bool runOnFunction(Function &F) {
     bool Transformed = false;
-
+    // Iterate over all basic blocks in the function
     for (auto Iter = F.begin(); Iter != F.end(); ++Iter) {
         if (AlgebraicIdentity(*Iter)) {
             Transformed = true;
