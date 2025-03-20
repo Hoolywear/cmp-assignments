@@ -1,21 +1,6 @@
-//=============================================================================
-// FILE:
-//    TestPass.cpp
-//
-// DESCRIPTION:
-//    Visits all functions in a module and prints their names. Strictly speaking, 
-//    this is an analysis pass (i.e. //    the functions are not modified). However, 
-//    in order to keep things simple there's no 'print' method here (every analysis 
-//    pass should implement it).
-//
-// USAGE:
-//    New PM
-//      opt -load-pass-plugin=<path-to>libTestPass.so -passes="test-pass" `\`
-//        -disable-output <input-llvm-file>
-//
-//
-// License: MIT
-//=============================================================================
+/*
+* 	Algebraic Identity Pass
+*/
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
@@ -23,69 +8,55 @@
 
 using namespace llvm;
 
-// 𝑥 + 0 = 0 + 𝑥 --> 𝑥
-// 𝑥 × 1 = 1 × 𝑥 --> 𝑥
+/*
+*   get the number of the operand and replace all the uses of the instruction with the operand
+*/
+void replaceUses(int opNumber, Instruction &I){
+    Value *op = I.getOperand(opNumber);
+    I.replaceAllUsesWith(op);
+    // I.eraseFromParent();
+}
+
+/*
+* The function implements the Algebric Identity optimization pass
+*/
 bool AlgebraicIdentity(BasicBlock &B){
 
     for (Instruction& I : B) {
-
-        outs() << I << "\n";
         
-        // Check if the instruction is a sum
+        outs() << I << "\n";
+
+        // Check if the instruction is an add
         if (I.getOpcode() == Instruction::Add) {
-            outs() << "Found a sum\n";
-            
             // get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-            /*
-            */
+            // check if the first operand is zero and the second one is not a constant value
             if ( C1 && !C2 && C1->getValue().isZero() ) {
-                outs() << "Found a zero\n";
-                Value *op2 = I.getOperand(1);
-                I.replaceAllUsesWith(op2);
-                // I.eraseFromParent();
-            } 
+                replaceUses(1, I);
+            }
             else if ( C2 && !C1 && C2->getValue().isZero() ) {
-                outs() << "Found a zero\n";
-                Value *op1 = I.getOperand(0);
-                I.replaceAllUsesWith(op1);
-                // I.eraseFromParent();
+                replaceUses(0, I);
             }
         }
-        
+        // check if the instruction is a mul
         if (I.getOpcode() == Instruction::Mul) {
-            outs() << "Found a mul\n";
-            
             // get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-            /*
-            */
+            // check if the first operand is zero and the second one is not a constant value
             if ( C1 && !C2 && C1->getValue().isOne() ) {
-                outs() << "Found a one\n";
-                Value *op2 = I.getOperand(1);
-                I.replaceAllUsesWith(op2);
-                // I.eraseFromParent();
+                replaceUses(1, I);
             } 
             else if ( C2 && !C1 && C2->getValue().isOne() ) {
-                outs() << "Found a one\n";
-                Value *op1 = I.getOperand(0);
-                I.replaceAllUsesWith(op1);
-                // I.eraseFromParent();
+                replaceUses(0, I);
             }
         }
-
-
-
     }
-
     return true;
 }
 
 bool runOnFunction(Function &F) {
     bool Transformed = false;
-    /*
-        Iterare sulla funzione significa iterare sul suo CFG
-    */
+
     for (auto Iter = F.begin(); Iter != F.end(); ++Iter) {
         if (AlgebraicIdentity(*Iter)) {
             Transformed = true;
@@ -102,20 +73,13 @@ bool runOnFunction(Function &F) {
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 namespace {
-
-
 // New PM implementation
 struct As01Pass: PassInfoMixin<As01Pass> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
-  
-  /* APPUNTI
-   *	andiamo ad estendere questa funzione
-   */
+
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-
     bool res = runOnFunction(F);
-
   	return PreservedAnalyses::all();
 }
 
