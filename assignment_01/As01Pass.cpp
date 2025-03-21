@@ -23,8 +23,8 @@ bool AlgebraicIdentity(BasicBlock &B){
         
         outs() << I << "\n";
 
-        // Check if the instruction is an add
-        if (I.getOpcode() == Instruction::Add) {
+        // Check if the instruction is an add or sub
+        if ((I.getOpcode() == Instruction::Add) || (I.getOpcode() == Instruction::Sub)) {
             // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
             // Check if the first operand is zero and the second one is not a constant
@@ -35,8 +35,8 @@ bool AlgebraicIdentity(BasicBlock &B){
                 replaceUses(0, I);
             }
         }
-        // Check if the instruction is a mul
-        if (I.getOpcode() == Instruction::Mul) {
+        // Check if the instruction is a mul or a sub (signed)
+        if ((I.getOpcode() == Instruction::Mul) || (I.getOpcode() == Instruction::SDiv)) {
             // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
             // Check if the first operand is zero and the second one is not a constant
