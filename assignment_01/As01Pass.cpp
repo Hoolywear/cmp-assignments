@@ -41,7 +41,7 @@ bool AlgebraicIdentity(BasicBlock &B){
             // Check if the first operand is zero and the second one is not a constant
             if ( C1 && !C2 && C1->getValue().isOne() ) {
                 replaceUses(1, I);
-            } 
+            }
             else if ( C2 && !C1 && C2->getValue().isOne() ) {
                 replaceUses(0, I);
             }
@@ -108,28 +108,28 @@ bool AdvancedStrengthReduction(BasicBlock &B){
             /*
                 Note that every case also check if the constant value is not 1 (Algebraic Identity optimization)
             */
-            if ( C1 && !C2 && (!C1->getValue().isOne() && C1->getValue().isPowerOf2()) ) {
+            if ( C1 && !C2 && C1->getValue().isPowerOf2() ) {
                 LShiftReplace(1, I, C1);
             }
             // Check if the second operand is a power of 2 and the first one is not a constant
-            else if ( C2 && !C1 && (!C2->getValue().isOne() && C2->getValue().isPowerOf2())) {
+            else if ( C2 && !C1 && C2->getValue().isPowerOf2()) {
                 LShiftReplace(0, I, C2);
             }
             /*
             * Advanced Strength Reduction
             */
-           // First operand is a constant power of 2 +1 and -1 and the second one is not a constant
-            else if ( C1 && !C2 && (!C1->getValue().isOne() && (C1->getValue()+1).isPowerOf2()) ){
+            // First operand is a constant power of 2 +1 and -1 and the second one is not a constant
+            else if ( C1 && !C2 && (C1->getValue()+1).isPowerOf2() ){
                 ShiftSubReplace(1, I, C1);
             }
-            else if ( C1 && !C2 && (!C1->getValue().isOne() &&(C1->getValue()-1).isPowerOf2()) ){
+            else if ( C1 && !C2 && (C1->getValue()-1).isPowerOf2() ){
                 ShiftAddReplace(1, I, C1);
             }
             // Second operand is a constant power of 2 +1 and -1 and the second one is not a constant
-            else if ( C2 && !C1 && (!C2->getValue().isOne() && (C2->getValue()+1).isPowerOf2()) ){
+            else if ( C2 && !C1 && (C2->getValue()+1).isPowerOf2() ){
                 ShiftSubReplace(0, I, C2);
             }
-            else if ( C2 && !C1 && (!C2->getValue().isOne() && (C2->getValue()-1).isPowerOf2()) ){
+            else if ( C2 && !C1 && (C2->getValue()-1).isPowerOf2() ){
                 ShiftAddReplace(0, I, C2);
             }
         }
@@ -140,11 +140,11 @@ bool AdvancedStrengthReduction(BasicBlock &B){
             // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
             // Check if the first operand is a power of 2 and the second one is not a constant
-            if ( C1 && !C2 && (!C1->getValue().isOne() && C1->getValue().isPowerOf2()) ) {
+            if ( C1 && !C2 && C1->getValue().isPowerOf2()) {
                 RShiftReplace(1, I, C1);
             }
             // Check if the second operand is a power of 2 and the first one is not a constant
-            else if ( C2 && !C1 && (!C2->getValue().isOne() && C2->getValue().isPowerOf2())) {
+            else if ( C2 && !C1 && C2->getValue().isPowerOf2()) {
                 RShiftReplace(0, I, C2);
             }
         }
@@ -186,7 +186,7 @@ bool runOnFunction(Function &F, int passNumb) {
     bool Transformed = false;
     // Iterate over all basic blocks in the function
     for (auto Iter = F.begin(); Iter != F.end(); ++Iter) {
-        if ( (passNumb == 1) && AlgebraicIdentity(*Iter)) 
+        if ( (passNumb == 1) && AlgebraicIdentity(*Iter))
         {
             Transformed = true;
         }
