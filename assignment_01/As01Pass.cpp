@@ -59,7 +59,6 @@ void LShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     Shift->insertAfter(&I);
     I.replaceAllUsesWith(Shift);
 }
-
 void RShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::AShr, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift", &I);
@@ -67,8 +66,6 @@ void RShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     Shift->insertAfter(&I);
     I.replaceAllUsesWith(Shift);
 }
-
-
 void ShiftSubReplace( int opNumb, Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()+1).logBase2()), "shift", &I);
@@ -79,7 +76,6 @@ void ShiftSubReplace( int opNumb, Instruction &I, ConstantInt *C){
     Sub->insertAfter(Shift);
     I.replaceAllUsesWith(Sub);
 }
-
 void ShiftAddReplace(int opNumb, Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()-1).logBase2()), "shift", &I);
@@ -91,7 +87,9 @@ void ShiftAddReplace(int opNumb, Instruction &I, ConstantInt *C){
     I.replaceAllUsesWith(Add);
 }
 
-
+/*
+*     Advanced Strength Reduction Pass
+*/
 bool AdvancedStrengthReduction(BasicBlock &B){
     outs() << "Advanced Strength Reduction\n";
     std::vector<Instruction *> InstructionsToRemove;
@@ -154,6 +152,36 @@ bool AdvancedStrengthReduction(BasicBlock &B){
     return true;
 }
 
+/*
+ *      Multi-Instruction Optimization
+ */
+bool MultiInstructionOptimization(BasicBlock &B){
+
+    outs() << "Multi-Instruction Optimization\n";
+    // For all intructions in the basic block
+    for (Instruction& I : B){
+        outs() << I << "\n";
+        // if the instruction is an add
+        if ( I.getOpcode() == Instruction::Add ){
+            // Get the operands of the instruction
+            ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
+            // Check if the first operand is a constant and the second one is not a constant
+            if ( C2 && !C1 ){
+                // Iterate over all users of the instruction
+                for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
+                    Instruction *UserInst = dyn_cast<Instruction>(*Iter);
+                    if ( ( UserInst->getOpcode() == Instruction::Sub ) && (C2->getValue() == dyn_cast<ConstantInt>(UserInst->getOperand(1))->getValue()) ){
+                        // outs() << "Instruction to optimize: ";
+                        // outs() << *UserInst << "\n";
+                        UserInst->replaceAllUsesWith(I.getOperand(0));
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
 bool runOnFunction(Function &F, int passNumb) {
     bool Transformed = false;
     // Iterate over all basic blocks in the function
@@ -163,6 +191,10 @@ bool runOnFunction(Function &F, int passNumb) {
             Transformed = true;
         }
         else if ( (passNumb == 2) && AdvancedStrengthReduction(*Iter))
+        {
+            Transformed = true;
+        }
+        else if ( (passNumb == 3) && MultiInstructionOptimization(*Iter))
         {
             Transformed = true;
         }
@@ -193,6 +225,16 @@ namespace {
     }
         static bool isRequired() { return true; }
     };
+
+    // Third pass ( Multi-Instruction Optimization )
+    struct As01Pass3: PassInfoMixin<As01Pass3> {
+        PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+            bool res = runOnFunction(F, 3);
+            return PreservedAnalyses::all();
+    }
+        static bool isRequired() { return true; }
+    };
+
 } // namespace
 
 //-----------------------------------------------------------------------------
@@ -210,6 +252,10 @@ llvm::PassPluginLibraryInfo getTestPassPluginInfo() {
                   }
                   if ( Name == "AdvStrRed" ){
                     FPM.addPass(As01Pass2());
+                    return true;
+                  }
+                  if ( Name == "MultiInstOpt" ){
+                    FPM.addPass(As01Pass3());
                     return true;
                   }
                   return false;
