@@ -168,19 +168,49 @@ bool MultiInstructionOptimization(BasicBlock &B){
     // For all intructions in the basic block
     for (Instruction& I : B){
         outs() << I << "\n";
-        // if the instruction is an add
-        if ( I.getOpcode() == Instruction::Add ){
-            // Get the operands of the instruction
-            ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-            // Check if the first operand is a constant and the second one is not a constant
-            if ( C2 && !C1 ){
-                // Iterate over all users of the instruction
-                for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
-                    Instruction *UserInst = dyn_cast<Instruction>(*Iter);
-                    if ( ( UserInst->getOpcode() == Instruction::Sub ) && (C2->getValue() == dyn_cast<ConstantInt>(UserInst->getOperand(1))->getValue()) ){
-                        // outs() << "Instruction to optimize: ";
-                        // outs() << *UserInst << "\n";
-                        UserInst->replaceAllUsesWith(I.getOperand(0));
+
+        // Check if instruction is a binary operation of interest (add, sub)
+        unsigned int OP = I.getOpcode();
+        if (OP == Instruction::Add || OP == Instruction::Sub) {
+            Value* LHS = I.getOperand(0), *RHS = I.getOperand(1);
+            ConstantInt* C1 = dyn_cast<ConstantInt>(LHS), *C2 = dyn_cast<ConstantInt>(RHS);
+            Value* Substitute = nullptr;        // The non constant operand
+            ConstantInt* ConstantOp = nullptr;  // The constant operand
+
+            // Check if only one of the operands is a constant
+            if (C1 && !C2) {
+                Substitute = RHS;
+                ConstantOp = C1;
+                outs() << "rhs c1\t";
+                outs() << "SUBSTITUTE: " << *Substitute << '\t';
+                outs() << "CONSTANTOP: " << *ConstantOp << '\n';
+            } else if (!C1 && C2) {
+                Substitute = LHS;
+                ConstantOp = C2;
+                outs() << "lhs c2\t";
+                outs() << "SUBSTITUTE: " << *Substitute << '\t';
+                outs() << "CONSTANTOP: " << *ConstantOp << '\n';
+            } else { // If both operands are constants or both are not constants
+                outs() << "skip\n";
+                continue;
+            }
+
+
+            // Iterate over all users of the instruction
+            for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
+                Instruction* UserInst = dyn_cast<Instruction>(*Iter);
+                if (!areOppositeOps(OP,UserInst->getOpcode())) {
+                    outs() << "Not an opposite operation:\t" << *UserInst << "\n";
+                    continue;
+                } else {
+                    outs() << "UserInst:\t" << *UserInst << '\n';
+                    ConstantInt* UserC1 = dyn_cast<ConstantInt>(UserInst->getOperand(0)), *UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
+                    if (UserC2 && (UserC2->getValue() == ConstantOp->getValue())) {
+                        outs() << "Primo operando uguale a quello non costante, secondo uguale a quello costante\n";
+                        UserInst->replaceAllUsesWith(Substitute);
+                    } else if (UserC1 && (UserC1->getValue() == ConstantOp->getValue())) {
+                        outs() << "Primo operando uguale a quello costante, secondo uguale a quello non costante\n";
+                        UserInst->replaceAllUsesWith(Substitute);
                     }
                 }
             }
