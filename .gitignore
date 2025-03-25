@@ -1,3 +1,7 @@
 # CMake files and builds
 
 build/
+
+# Intermediate bytecode files
+
+*.bc
