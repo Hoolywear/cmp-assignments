@@ -181,17 +181,10 @@ bool MultiInstructionOptimization(BasicBlock &B){
             if (C1 && !C2) {
                 Substitute = RHS;
                 ConstantOp = C1;
-                outs() << "rhs c1\t";
-                outs() << "SUBSTITUTE: " << *Substitute << '\t';
-                outs() << "CONSTANTOP: " << *ConstantOp << '\n';
             } else if (!C1 && C2) {
                 Substitute = LHS;
                 ConstantOp = C2;
-                outs() << "lhs c2\t";
-                outs() << "SUBSTITUTE: " << *Substitute << '\t';
-                outs() << "CONSTANTOP: " << *ConstantOp << '\n';
             } else { // If both operands are constants or both are not constants
-                outs() << "skip\n";
                 continue;
             }
 
@@ -199,17 +192,16 @@ bool MultiInstructionOptimization(BasicBlock &B){
             // Iterate over all users of the instruction
             for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
                 Instruction* UserInst = dyn_cast<Instruction>(*Iter);
+                // Skip iteration if the user is not a direct "opposite" of the usee
                 if (!areOppositeOps(OP,UserInst->getOpcode())) {
-                    outs() << "Not an opposite operation:\t" << *UserInst << "\n";
                     continue;
                 } else {
-                    outs() << "UserInst:\t" << *UserInst << '\n';
                     ConstantInt* UserC1 = dyn_cast<ConstantInt>(UserInst->getOperand(0)), *UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
-                    if (UserC2 && (UserC2->getValue() == ConstantOp->getValue())) {
-                        outs() << "Primo operando uguale a quello non costante, secondo uguale a quello costante\n";
-                        UserInst->replaceAllUsesWith(Substitute);
-                    } else if (UserC1 && (UserC1->getValue() == ConstantOp->getValue())) {
-                        outs() << "Primo operando uguale a quello costante, secondo uguale a quello non costante\n";
+                    if ((UserC2 && (UserC2->getValue() == ConstantOp->getValue())) ||
+                    (UserC1 && (UserC1->getValue() == ConstantOp->getValue()))) {
+                        outs() << "Substitute" << *UserInst << " with ";
+                        Substitute->printAsOperand(outs(), false);
+                        outs() << "\n";
                         UserInst->replaceAllUsesWith(Substitute);
                     }
                 }
