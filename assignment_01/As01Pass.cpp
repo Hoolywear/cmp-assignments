@@ -16,6 +16,13 @@ void replaceUses(int opNumber, Instruction &I){
     // I.eraseFromParent();
 }
 
+bool areOppositeOps(int op1, int op2){
+    return (op1 == Instruction::Add && op2 == Instruction::Sub)
+    || (op1 == Instruction::Sub && op2 == Instruction::Add)
+    || (op1 == Instruction::Mul && op2 == Instruction::SDiv)
+    || (op1 == Instruction::SDiv && op2 == Instruction::Mul);
+}
+
 /*
 * 	Algebraic Identity Pass
 */
