@@ -156,7 +156,7 @@ bool AdvancedStrengthReduction(BasicBlock &B){
  *      Multi-Instruction Optimization
  */
 bool MultiInstructionOptimization(BasicBlock &B){
-
+    
     outs() << "Multi-Instruction Optimization\n";
     // For all intructions in the basic block
     for (Instruction& I : B){
