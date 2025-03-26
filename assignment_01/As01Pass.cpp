@@ -167,45 +167,7 @@ bool AdvancedStrengthReduction(BasicBlock &B){
  */
 
 void multiInstructionSearch(Instruction &I, uint64_t currentValue) {
-    // Check if instruction is a binary operation of interest (add, sub)
-    unsigned int OP = I.getOpcode();
-    if (OP == Instruction::Add || OP == Instruction::Sub) {
-        Value* LHS = I.getOperand(0), *RHS = I.getOperand(1);
-        ConstantInt* C1 = dyn_cast<ConstantInt>(LHS), *C2 = dyn_cast<ConstantInt>(RHS);
-        Value* Substitute = nullptr;        // The non constant operand
-        ConstantInt* ConstantOp = nullptr;  // The constant operand
-        // Check if only one of the operands is a constant
-        if (C1 && !C2 && OP != Instruction::Sub) {
-            Substitute = RHS;
-            ConstantOp = C1;
-        } else if (!C1 && C2) {
-            Substitute = LHS;
-            ConstantOp = C2;
-        } else { // If both operands are constants or both are not constants
-            return; 
-        }
-        // Iterate over all users of the instruction
-        for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
-            Instruction* UserInst = dyn_cast<Instruction>(*Iter);
-            // Skip iteration if the user is not a direct "opposite" of the usee
-            if (!areOppositeOps(OP,UserInst->getOpcode())) {
-                continue;
-            } else {
-                ConstantInt* UserC1 = dyn_cast<ConstantInt>(UserInst->getOperand(0)),*UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
-                uint64_t newValue = currentValue + ConstantOp->getZExtValue();
-                if ((UserC2 && (UserC2->getZExtValue() == newValue)) ||
-                (UserC1 && (UserC1->getZExtValue() == newValue))) {
-                    outs() << "Substitute" << *UserInst << " with ";
-                    Substitute->printAsOperand(outs(), false);
-                    outs() << "\n";
-                    UserInst->replaceAllUsesWith(Substitute);
-                } else {
-                    // RICHIAMA FUNZ RICORSIVAMENTE!
-                    multiInstructionSearch(*UserInst,newValue);
-                }
-            }
-        }
-    }
+    
 }
 bool MultiInstructionOptimization(BasicBlock &B){
 
@@ -213,7 +175,37 @@ bool MultiInstructionOptimization(BasicBlock &B){
     // For all intructions in the basic block
     for (Instruction& I : B){
         outs() << I << "\n";
-        multiInstructionSearch(I,0);
+        // Check if instruction is a binary operation of interest (add, sub)
+        unsigned int OP = I.getOpcode();
+        if (OP == Instruction::Add || OP == Instruction::Sub) {
+            Value* LHS = I.getOperand(0), *RHS = I.getOperand(1);
+            ConstantInt* C1 = dyn_cast<ConstantInt>(LHS), *C2 = dyn_cast<ConstantInt>(RHS);
+            Value* Substitute = nullptr;        // The non constant operand
+            ConstantInt* ConstantOp = nullptr;  // The constant operand
+            // Check if only one of the operands is a constant
+            if (C1 && !C2 && OP != Instruction::Sub) {
+                Substitute = RHS;
+                ConstantOp = C1;
+            } else if (!C1 && C2) {
+                Substitute = LHS;
+                ConstantOp = C2;
+            } else { // If both operands are constants or both are not constants
+                continue; 
+            }
+            // Iterate over all users of the instruction
+            for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
+                Instruction* UserInst = dyn_cast<Instruction>(*Iter);
+                // Skip iteration if the user is not a direct "opposite" of the usee
+                ConstantInt* UserC1 = dyn_cast<ConstantInt>(UserInst->getOperand(0)),*UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
+                if (areOppositeOps(OP,UserInst->getOpcode()) && 
+                (( UserC2 && (UserC2->getValue() == ConstantOp->getValue())) || ( UserC1 && (UserC1->getValue() == ConstantOp->getValue()))) ) {
+                    outs() << "Substitute" << *UserInst << " with ";
+                    Substitute->printAsOperand(outs(), false);
+                    outs() << "\n";
+                    UserInst->replaceAllUsesWith(Substitute);
+                }
+            }
+        }
     }
     return true;
 }
@@ -240,6 +232,13 @@ bool runOnFunction(Function &F, int passNumb) {
 }
 
 
+enum {
+    AlgId = 1,
+    AdvStrRed = 2,
+    MultiInstOpt = 3
+};
+
+
 //-----------------------------------------------------------------------------
 // Pass implementation
 //-----------------------------------------------------------------------------
@@ -247,7 +246,7 @@ namespace {
     // First pass ( Algebraic Identity )
     struct As01Pass1: PassInfoMixin<As01Pass1> {
     PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-        bool res = runOnFunction(F, 1);
+        bool res = runOnFunction(F, AlgId);
         return PreservedAnalyses::all();
     }
     static bool isRequired() { return true; }
@@ -256,7 +255,7 @@ namespace {
     // Second pass ( Advanced Strength Reduction )
     struct As01Pass2: PassInfoMixin<As01Pass2> {
         PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-            bool res = runOnFunction(F, 2);
+            bool res = runOnFunction(F, AdvStrRed);
             return PreservedAnalyses::all();
     }
         static bool isRequired() { return true; }
@@ -265,7 +264,7 @@ namespace {
     // Third pass ( Multi-Instruction Optimization )
     struct As01Pass3: PassInfoMixin<As01Pass3> {
         PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
-            bool res = runOnFunction(F, 3);
+            bool res = runOnFunction(F, MultiInstOpt);
             return PreservedAnalyses::all();
     }
         static bool isRequired() { return true; }
