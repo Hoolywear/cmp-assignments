@@ -103,7 +103,6 @@ void ShiftAddReplace(int opNumb, Instruction &I, ConstantInt *C){
 */
 bool AdvancedStrengthReduction(BasicBlock &B){
     outs() << "Advanced Strength Reduction\n";
-    std::vector<Instruction *> InstructionsToRemove;
     for (auto Inst = B.begin(); Inst != B.end(); ++Inst) { // Iteratore esplicito
         Instruction &I = *Inst;
         outs() << I << "\n";
