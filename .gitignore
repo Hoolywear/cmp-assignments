@@ -2,6 +2,7 @@
 
 build/
 
-# Intermediate bytecode files
+# Intermediate bytecode and human-readable IR files
 
 *.bc
+*.ll
