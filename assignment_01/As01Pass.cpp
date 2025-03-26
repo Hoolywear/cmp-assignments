@@ -65,7 +65,7 @@ bool AlgebraicIdentity(BasicBlock &B){
 */
 void LShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     // Create a new shift instruction
-    BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift", &I);
+    BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift");
     // Replace all uses of the mul instruction with the shift instruction
     Shift->insertAfter(&I);
     I.replaceAllUsesWith(Shift);
@@ -75,7 +75,7 @@ void LShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
 */
 void RShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     // Create a new shift instruction
-    BinaryOperator *Shift = BinaryOperator::Create(Instruction::AShr, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift", &I);
+    BinaryOperator *Shift = BinaryOperator::Create(Instruction::AShr, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift");
     // Replace all uses of the mul instruction with the shift instruction
     Shift->insertAfter(&I);
     I.replaceAllUsesWith(Shift);
@@ -86,9 +86,9 @@ void RShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
 */
 void ShiftSubReplace( int opNumb, Instruction &I, ConstantInt *C){
     // Create a new shift instruction
-    BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()+1).logBase2()), "shift", &I);
+    BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()+1).logBase2()), "shift");
     // Create a new sub instruction
-    BinaryOperator *Sub = BinaryOperator::Create(Instruction::Sub, Shift, I.getOperand(opNumb), "sub", &I);
+    BinaryOperator *Sub = BinaryOperator::Create(Instruction::Sub, Shift, I.getOperand(opNumb), "sub");
     // Replace all uses of the mul instruction with the sub instruction
     Shift->insertAfter(&I);
     Sub->insertAfter(Shift);
@@ -100,9 +100,9 @@ void ShiftSubReplace( int opNumb, Instruction &I, ConstantInt *C){
 */
 void ShiftAddReplace(int opNumb, Instruction &I, ConstantInt *C){
     // Create a new shift instruction
-    BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()-1).logBase2()), "shift", &I);
+    BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()-1).logBase2()), "shift");
     // Create a new add instruction
-    BinaryOperator *Add = BinaryOperator::Create(Instruction::Add, Shift, I.getOperand(opNumb), "add", &I);
+    BinaryOperator *Add = BinaryOperator::Create(Instruction::Add, Shift, I.getOperand(opNumb), "add");
     // Replace all uses of the mul instruction with the add instruction
     Shift->insertAfter(&I);
     Add->insertAfter(Shift);
