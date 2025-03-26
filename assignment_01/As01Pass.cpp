@@ -152,12 +152,8 @@ bool AdvancedStrengthReduction(BasicBlock &B){
             // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0));
             ConstantInt *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
-            // Check if the first operand is a power of 2 and the second one is not a constant
-            if ( C1 && !C2 && C1->getValue().isPowerOf2()) {
-                RShiftReplace(1, I, C1);
-            }
             // Check if the second operand is a power of 2 and the first one is not a constant
-            else if ( C2 && !C1 && C2->getValue().isPowerOf2()) {
+            if ( C2 && !C1 && C2->getValue().isPowerOf2()) {
                 RShiftReplace(0, I, C2);
             }
         }
