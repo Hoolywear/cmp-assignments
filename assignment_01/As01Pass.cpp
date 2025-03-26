@@ -13,7 +13,6 @@ using namespace llvm;
 void replaceUses(int opNumber, Instruction &I){
     Value *op = I.getOperand(opNumber);
     I.replaceAllUsesWith(op);
-    // I.eraseFromParent();
 }
 
 /*
@@ -22,9 +21,7 @@ void replaceUses(int opNumber, Instruction &I){
 */
 bool areOppositeOps(int op1, int op2){
     return (op1 == Instruction::Add && op2 == Instruction::Sub)
-    || (op1 == Instruction::Sub && op2 == Instruction::Add)
-    || (op1 == Instruction::Mul && op2 == Instruction::SDiv)
-    || (op1 == Instruction::SDiv && op2 == Instruction::Mul);
+    || (op1 == Instruction::Sub && op2 == Instruction::Add);
 }
 
 /*
@@ -63,6 +60,9 @@ bool AlgebraicIdentity(BasicBlock &B){
 }
 
 
+/*
+* Create the left shift for ("baisc") strength reduction
+*/
 void LShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift", &I);
@@ -70,6 +70,9 @@ void LShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     Shift->insertAfter(&I);
     I.replaceAllUsesWith(Shift);
 }
+/*
+* Create the right shift for ("basic") strength reduction
+*/
 void RShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::AShr, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), C->getValue().logBase2()), "shift", &I);
@@ -77,6 +80,10 @@ void RShiftReplace(int opNumb ,Instruction &I, ConstantInt *C){
     Shift->insertAfter(&I);
     I.replaceAllUsesWith(Shift);
 }
+/*
+* Create the left shift and Sub instruction for ("advanced") strength reduction
+* This function is called when the constant is a power of 2 -1
+*/
 void ShiftSubReplace( int opNumb, Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()+1).logBase2()), "shift", &I);
@@ -87,6 +94,10 @@ void ShiftSubReplace( int opNumb, Instruction &I, ConstantInt *C){
     Sub->insertAfter(Shift);
     I.replaceAllUsesWith(Sub);
 }
+/*
+* Create the right shift and Add instruction for ("advanced") strength reduction
+* This function is called when the constant is a power of 2 +1
+*/
 void ShiftAddReplace(int opNumb, Instruction &I, ConstantInt *C){
     // Create a new shift instruction
     BinaryOperator *Shift = BinaryOperator::Create(Instruction::Shl, I.getOperand(opNumb), ConstantInt::get(I.getOperand(opNumb)->getType(), (C->getValue()-1).logBase2()), "shift", &I);
@@ -103,21 +114,16 @@ void ShiftAddReplace(int opNumb, Instruction &I, ConstantInt *C){
 */
 bool AdvancedStrengthReduction(BasicBlock &B){
     outs() << "Advanced Strength Reduction\n";
-    for (auto Inst = B.begin(); Inst != B.end(); ++Inst) { // Iteratore esplicito
+    for (auto Inst = B.begin(); Inst != B.end(); ++Inst) {
         Instruction &I = *Inst;
         outs() << I << "\n";
         // Check if the instruction is a mul
         if (I.getOpcode() == Instruction::Mul) {
-            /*
-            * Base Strength Reduction 
-            */
+    // BASE STRENGTH REDUCTION
             // Get the operands of the instruction
             ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0));
             ConstantInt *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
             // Check if the first operand is a power of 2 and the second one is not a constant
-            /*
-                Note that every case also check if the constant value is not 1 (Algebraic Identity optimization)
-            */
             if ( C1 && !C2 && C1->getValue().isPowerOf2() ) {
                 LShiftReplace(1, I, C1);
             }
@@ -125,9 +131,7 @@ bool AdvancedStrengthReduction(BasicBlock &B){
             else if ( C2 && !C1 && C2->getValue().isPowerOf2()) {
                 LShiftReplace(0, I, C2);
             }
-            /*
-            * Advanced Strength Reduction
-            */
+    // ADVANCED STRENGTH REDUCTION
             // First operand is a constant power of 2 +1 and -1 and the second one is not a constant
             else if ( C1 && !C2 && (C1->getValue()+1).isPowerOf2() ){
                 ShiftSubReplace(1, I, C1);
@@ -144,11 +148,10 @@ bool AdvancedStrengthReduction(BasicBlock &B){
             }
         }
         if ( I.getOpcode() == Instruction::SDiv ){
-            /*
-            * Base Strength Reduction
-            */
+    // BASE STRENGTH REDUCTION
             // Get the operands of the instruction
-            ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0)), *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
+            ConstantInt *C1 = dyn_cast<ConstantInt>(I.getOperand(0));
+            ConstantInt *C2 = dyn_cast<ConstantInt>(I.getOperand(1));
             // Check if the first operand is a power of 2 and the second one is not a constant
             if ( C1 && !C2 && C1->getValue().isPowerOf2()) {
                 RShiftReplace(1, I, C1);
@@ -163,31 +166,33 @@ bool AdvancedStrengthReduction(BasicBlock &B){
 }
 
 /*
- *      Multi-Instruction Optimization
- */
-
-void multiInstructionSearch(Instruction &I, uint64_t currentValue) {
-    
-}
+ *  Multi-Instruction Optimization
+*/
 bool MultiInstructionOptimization(BasicBlock &B){
-    
     outs() << "Multi-Instruction Optimization\n";
     // For all intructions in the basic block
     for (Instruction& I : B){
         outs() << I << "\n";
         // Check if instruction is a binary operation of interest (add, sub)
         unsigned int OP = I.getOpcode();
+        // Check if the instruction is an add OR sub
         if (OP == Instruction::Add || OP == Instruction::Sub) {
-            Value* LHS = I.getOperand(0), *RHS = I.getOperand(1);
-            ConstantInt* C1 = dyn_cast<ConstantInt>(LHS), *C2 = dyn_cast<ConstantInt>(RHS);
-            Value* Substitute = nullptr;        // The non constant operand
-            ConstantInt* ConstantOp = nullptr;  // The constant operand
+            // Operands of the instruction
+            Value *RHS1 = I.getOperand(0);
+            Value *RHS2 = I.getOperand(1);
+            // Cast the operands to ConstantInt
+            ConstantInt *C1 = dyn_cast<ConstantInt>(RHS1);
+            ConstantInt *C2 = dyn_cast<ConstantInt>(RHS2);
+            // The non constant operand
+            Value* Substitute = nullptr;
+            // The constant operand
+            ConstantInt* ConstantOp = nullptr;
             // Check if only one of the operands is a constant
             if (C1 && !C2 && OP != Instruction::Sub) {
-                Substitute = RHS;
+                Substitute = RHS2;
                 ConstantOp = C1;
             } else if (!C1 && C2) {
-                Substitute = LHS;
+                Substitute = RHS1;
                 ConstantOp = C2;
             } else { // If both operands are constants or both are not constants
                 continue; 
@@ -195,10 +200,16 @@ bool MultiInstructionOptimization(BasicBlock &B){
             // Iterate over all users of the instruction
             for (auto Iter = I.user_begin(); Iter != I.user_end(); ++Iter) {
                 Instruction* UserInst = dyn_cast<Instruction>(*Iter);
-                // Skip iteration if the user is not a direct "opposite" of the usee
-                ConstantInt* UserC1 = dyn_cast<ConstantInt>(UserInst->getOperand(0)),*UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
-                if (areOppositeOps(OP,UserInst->getOpcode()) && 
-                (( UserC2 && (UserC2->getValue() == ConstantOp->getValue())) || ( UserC1 && (UserC1->getValue() == ConstantOp->getValue()))) ) {
+                // Skip iteration if the user inst is not a binary operation
+                if ( !UserInst->isBinaryOp() ) {
+                    continue;
+                }
+                // cast the operands of the user instruction to ConstantInt
+                ConstantInt *UserC1 = dyn_cast<ConstantInt>(UserInst->getOperand(0));
+                ConstantInt *UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
+                // check if the instruction are opposite and the constant value is the same
+                if ( areOppositeOps(OP,UserInst->getOpcode()) &&
+                ( ( UserC2 && (UserC2->getValue() == ConstantOp->getValue() ) ) || ( UserC1 && ( UserC1->getValue() == ConstantOp->getValue() ) ) ) ) {
                     outs() << "Substitute" << *UserInst << " with ";
                     Substitute->printAsOperand(outs(), false);
                     outs() << "\n";
@@ -231,7 +242,9 @@ bool runOnFunction(Function &F, int passNumb) {
     return Transformed;
 }
 
-
+/*
+*  Pass IDs for function pass call in runOnFunction 
+*/
 enum {
     AlgId = 1,
     AdvStrRed = 2,
@@ -280,20 +293,23 @@ llvm::PassPluginLibraryInfo getTestPassPluginInfo() {
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
-                   ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "AlgId") {
-                    FPM.addPass(As01Pass1());
-                    return true;
-                  }
-                  if ( Name == "AdvStrRed" ){
-                    FPM.addPass(As01Pass2());
-                    return true;
-                  }
-                  if ( Name == "MultiInstOpt" ){
-                    FPM.addPass(As01Pass3());
-                    return true;
-                  }
-                  return false;
+                ArrayRef<PassBuilder::PipelineElement>) {
+                    // Algebraic Identity
+                    if (Name == "AlgId") {
+                        FPM.addPass(As01Pass1());
+                        return true;
+                    }
+                    // Advanced Strength Reduction
+                    if ( Name == "AdvStrRed" ){
+                        FPM.addPass(As01Pass2());
+                        return true;
+                    }
+                    // Multi-Instruction Optimization
+                    if ( Name == "MultiInstOpt" ){
+                        FPM.addPass(As01Pass3());
+                        return true;
+                    }
+                    return false;
                 });
           }};
 }
