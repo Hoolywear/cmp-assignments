@@ -205,7 +205,7 @@ bool MultiInstructionOptimization(BasicBlock &B){
                 ConstantInt *UserC2 = dyn_cast<ConstantInt>(UserInst->getOperand(1));
                 // check if the instruction are opposite and the constant value is the same
                 if ( areOppositeOps(OP,UserInst->getOpcode()) &&
-                ( ( UserC2 && (UserC2->getValue() == ConstantOp->getValue() ) ) || ( UserC1 && ( UserC1->getValue() == ConstantOp->getValue() ) ) ) ) {
+                ( ( UserC2 && (UserC2->getValue() == ConstantOp->getValue() ) ) || ( UserC1 && ( UserC1->getValue() == ConstantOp->getValue() ) && UserInst->getOpcode() != Instruction::Sub) ) ) {
                     outs() << "Substitute" << *UserInst << " with ";
                     Substitute->printAsOperand(outs(), false);
                     outs() << "\n";
