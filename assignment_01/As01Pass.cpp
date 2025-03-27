@@ -217,27 +217,6 @@ bool MultiInstructionOptimization(BasicBlock &B){
     return true;
 }
 
-bool runOnFunction(Function &F, int passNumb) {
-    bool Transformed = false;
-    // Iterate over all basic blocks in the function
-    for (auto Iter = F.begin(); Iter != F.end(); ++Iter) {
-        if ( (passNumb == 1) && AlgebraicIdentity(*Iter))
-        {
-            Transformed = true;
-        }
-        else if ( (passNumb == 2) && AdvancedStrengthReduction(*Iter))
-        {
-            Transformed = true;
-        }
-        else if ( (passNumb == 3) && MultiInstructionOptimization(*Iter))
-        {
-            Transformed = true;
-        }
-    }
-
-    return Transformed;
-}
-
 /*
 *  Pass IDs for function pass call in runOnFunction 
 */
@@ -246,6 +225,27 @@ enum {
     AdvStrRed = 2,
     MultiInstOpt = 3
 };
+
+bool runOnFunction(Function &F, int passNumb) {
+    bool Transformed = false;
+    // Iterate over all basic blocks in the function
+    for (auto Iter = F.begin(); Iter != F.end(); ++Iter) {
+        if ( (passNumb == AlgId) && AlgebraicIdentity(*Iter))
+        {
+            Transformed = true;
+        }
+        else if ( (passNumb == AdvStrRed) && AdvancedStrengthReduction(*Iter))
+        {
+            Transformed = true;
+        }
+        else if ( (passNumb == MultiInstOpt) && MultiInstructionOptimization(*Iter))
+        {
+            Transformed = true;
+        }
+    }
+
+    return Transformed;
+}
 
 
 //-----------------------------------------------------------------------------
@@ -291,17 +291,17 @@ llvm::PassPluginLibraryInfo getTestPassPluginInfo() {
                 [](StringRef Name, FunctionPassManager &FPM,
                 ArrayRef<PassBuilder::PipelineElement>) {
                     // Algebraic Identity
-                    if (Name == "AlgId") {
+                    if (Name == "alg-id") {
                         FPM.addPass(As01Pass1());
                         return true;
                     }
                     // Advanced Strength Reduction
-                    if ( Name == "AdvStrRed" ){
+                    if ( Name == "adv-str-red" ){
                         FPM.addPass(As01Pass2());
                         return true;
                     }
                     // Multi-Instruction Optimization
-                    if ( Name == "MultiInstOpt" ){
+                    if ( Name == "multi-inst-opt" ){
                         FPM.addPass(As01Pass3());
                         return true;
                     }
