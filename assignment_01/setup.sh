@@ -1,13 +1,11 @@
 #!/bin/bash
 
 # Default values and script argument parsing
-opt_macos=false
-opt_linux=false
+dirname_arg="/usr/bin"
 
-while getopts ml opt; do
+while getopts d: opt; do
     case $opt in
-        m) opt_macos=true ;;
-        l) opt_linux=true ;;
+        d) dirname_arg=$OPTARG ;;
         *) echo 'error in command line parsing' >&2
            exit 1
     esac
@@ -15,10 +13,10 @@ done
 
 shift "$(( OPTIND - 1 ))"
 
-# needed on MacOS; exported only with -m flag
-"$opt_macos" && export LLVM_DIR=/opt/homebrew/opt/llvm && echo "Exported MacOS LLVM directory"
-# same for Linux
-"$opt_linux" && export LLVM_DIR=/usr/bin && echo "Exported Linux LLVM directory"
+# standard path for MacOS
+# export LLVM_DIR=/opt/homebrew/opt/llvm && echo "Exported MacOS LLVM directory"
+# default option (either passing -d path/to/llvm-dir or defaulting to /usr/bin)
+export LLVM_DIR=$dirname_arg && echo "Exported LLVM directory"
 
 # Actual setup
 
