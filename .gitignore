@@ -1,3 +1,8 @@
 # CMake files and builds
 
 build/
+
+# Intermediate bytecode and human-readable IR files
+
+*.bc
+*.ll
