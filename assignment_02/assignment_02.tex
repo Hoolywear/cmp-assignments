@@ -235,55 +235,11 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
 
 \subsection{Esempio}
 
-\begin{figure}[h]
+\begin{figure}[h!]
   \centering
-  \includegraphics[width=.5\textwidth]{example-3.png}
+  \includegraphics[width=.3\textwidth]{example-3.png}
   \caption{Esempio 3}
 \end{figure}
-
-\begin{table}[h!]
-\centering
-\renewcommand{\arraystretch}{1.2}
-\rowcolors{2}{gray!10}{white}
-\begin{tabular}{|c|c|c|c|c|c|c|}
-\hline
-\rowcolor{blue!30}
- & \multicolumn{2}{c|}{Iterazione 1} & \multicolumn{2}{c|}{Iterazione 2} & \multicolumn{2}{c|}{Iterazione 3} \\
-\rowcolor{blue!30}
- & IN[B] & OUT[B] & IN[B] & OUT[B] & IN[B] & OUT[B] \\
-\hline
-BB1 & $\emptyset$ & $\emptyset$ & $\emptyset$& $\emptyset$ & $\emptyset$ & $\emptyset$ \\
-\hline
-BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ & $\emptyset$ & $\lbrace(k,2)\rbrace$ & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
-\hline
-BB3 & $\lbrace(k,2)\rbrace$& $\lbrace(k,2)\rbrace$& $\lbrace(k,2)\rbrace$&$\lbrace(k,2)\rbrace$ &$\lbrace(k,2)\rbrace$ &$\lbrace(k,2)\rbrace$ \\
-\hline
-BB4 &$\lbrace(k,2)\rbrace$ &$\lbrace(k,2),(a,4)\rbrace$ &$\lbrace(k,2)\rbrace$ &$\lbrace(k,2),(a,4)\rbrace$&$\lbrace(k,2)\rbrace$ &$\lbrace(k,2),(a,4)\rbrace$ \\
-\hline
-BB5 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
-\hline
-BB6 &$\lbrace(k,2)\rbrace$ &$\lbrace(k,2),(a,4)\rbrace$ &$\lbrace(k,2)\rbrace$ &$\lbrace(k,2),(a,4)\rbrace$&$\lbrace(k,2)\rbrace$ &$\lbrace(k,2),(a,4)\rbrace$ \\
-\hline
-BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
-\hline
-BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
-\hline
-BB9 & $\lbrace(k,4),(a,4)\rbrace\cap\mathcal{U}=\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace\cap\lbrace(y,8),(k,5),(a,4),(b,2),(x,8)\rbrace=\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ &$\lbrace(k,4),(a,4)\rbrace\cap\lbrace(a,4),(b,2),(y,8)\rbrace=\lbrace(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ \\
-\hline
-BB10 & & & & & & \\
-\hline
-BB11 & & & & & & \\
-\hline
-BB12 & & & & & & \\
-\hline
-BB13 & & & & & & \\
-\hline
-BB14 & & & & & & \\
-\hline
-BB15 & & & & & & \\
-\hline
-\end{tabular}
-\end{table}
 
 \begin{table}[h!]
 \centering
@@ -314,17 +270,17 @@ BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
 BB9 & $\lbrace(k,4),(a,4)\rbrace\cap\mathcal{U}=\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
-BB10 & & \\
+BB10 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4),(b,2)\rbrace$\\
 \hline
-BB11 & & \\
+BB11 & $\lbrace(k,4),(a,4),(b,2)\rbrace$ & $\lbrace(k,4),(a,4),(b,2),(x,8)\rbrace$ \\
 \hline
-BB12 & & \\
+BB12 & $\lbrace(k,4),(a,4),(b,2),(x,8)\rbrace$ & $\lbrace(k,4),(a,4),(b,2),(x,8),(y,8)\rbrace$ \\
 \hline
-BB13 & & \\
+BB13 & $\lbrace(k,4),(a,4),(b,2),(x,8),(y,8)\rbrace$ & $\lbrace(k,5),(a,4),(b,2),(x,8),(y,8)\rbrace$ \\
 \hline
-BB14 & & \\
+BB14 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
-BB15 & & \\
+BB15 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
 \end{tabular}
 \caption{Iterazione 1}
@@ -334,46 +290,94 @@ BB15 & & \\
 \centering
 \renewcommand{\arraystretch}{1.2}
 \rowcolors{2}{gray!10}{white}
-\begin{tabular}{|c|c|c|c|c|}
+\begin{tabular}{|c|c|c|}
 \hline
 \rowcolor{blue!30}
- & \multicolumn{2}{c|}{Iterazione 2} & \multicolumn{2}{c|}{Iterazione 3} \\
+  & \multicolumn{2}{c|}{Iterazione 2} \\
 \rowcolor{blue!30}
- & IN[B] & OUT[B] & IN[B] & OUT[B] \\
+  & IN[B] & OUT[B] \\
 \hline
-BB1 & $\emptyset$ & $\emptyset$ & $\emptyset$ & $\emptyset$ \\
+BB1 & $\emptyset$ & $\emptyset$ \\
 \hline
-BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
+BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
 \hline
-BB3 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2)\rbrace$ \\
+BB3 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2)\rbrace$ \\
 \hline
-BB4 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
+BB4 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
 \hline
-BB5 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+BB5 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
 \hline
-BB6 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
+BB6 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
 \hline
-BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
 \hline
-BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
+BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
-BB9 & $\lbrace(k,4),(a,4)\rbrace\cap\lbrace(y,8),(k,5),(a,4),(b,2),(x,8)\rbrace=\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace\cap\lbrace(a,4),(b,2),(y,8)\rbrace=\lbrace(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ \\
+BB9 & $\lbrace(k,4),(a,4)\rbrace\cap\lbrace(y,8),(k,5),(a,4),(b,2)(x,8)\rbrace=\lbrace(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ \\
 \hline
-BB10 & & & & \\
+BB10 & $\lbrace(a,4)\rbrace$ & $\lbrace(a,4),(b,2)\rbrace$\\
 \hline
-BB11 & & & & \\
+BB11 & $\lbrace(a,4),(b,2)\rbrace$ & $\lbrace(a,4),(b,2)\rbrace$ \\
 \hline
-BB12 & & & & \\
+BB12 & $\lbrace(a,4),(b,2)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
-BB13 & & & & \\
+BB13 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
-BB14 & & & & \\
+BB14 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
-BB15 & & & & \\
+BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
 \end{tabular}
-\caption{Iterazioni 2 e 3}
+\caption{Iterazione 2}
 \end{table}
+
+\begin{table}[h!]
+  \centering
+  \renewcommand{\arraystretch}{1.2}
+  \rowcolors{2}{gray!10}{white}
+  \begin{tabular}{|c|c|c|}
+  \hline
+  \rowcolor{blue!30}
+    & \multicolumn{2}{c|}{Iterazione 3} \\
+  \rowcolor{blue!30}
+    & IN[B] & OUT[B] \\
+  \hline
+  BB1 & $\emptyset$ & $\emptyset$ \\
+  \hline
+  BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
+  \hline
+  BB3 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2)\rbrace$ \\
+  \hline
+  BB4 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
+  \hline
+  BB5 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+  \hline
+  BB6 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
+  \hline
+  BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+  \hline
+  BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
+  \hline
+  BB9 & $\lbrace(k,4),(a,4)\rbrace\cap\lbrace(y,8),(a,4),(b,2)\rbrace=\lbrace(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ \\
+  \hline
+  BB10 & $\lbrace(a,4)\rbrace$ & $\lbrace(a,4),(b,2)\rbrace$\\
+  \hline
+  BB11 & $\lbrace(a,4),(b,2)\rbrace$ & $\lbrace(a,4),(b,2)\rbrace$ \\
+  \hline
+  BB12 & $\lbrace(a,4),(b,2)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+  \hline
+  BB13 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+  \hline
+  BB14 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+  \hline
+  BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+  \hline
+  \end{tabular}
+  \caption{Iterazione 3}
+\end{table}
+
+Data la convergenza, si ferma l'esecuzione dell'algoritmo all'iterazione 3.
+
 
 
 \end{document}
