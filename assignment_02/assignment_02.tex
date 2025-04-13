@@ -73,7 +73,7 @@ Dove
   \item $Kill[b]$: un'espressione viene uccisa quando un suo operando viene ridefinito all'interno di \textit{b}
 \end{itemize}
 
-\subsection{Esempio}
+\subsection{Esempio di esecuzione}
 
 \begin{minipage}[c]{.25\textwidth}
   \includegraphics[width=\textwidth]{example-1.png}
@@ -143,7 +143,7 @@ BB1 & $\boxed{b-a}$ & / \\
   \caption{Dominator analysis}
 \end{table}
 
-\subsection{Esempio}
+\subsection{Esempio di esecuzione}
 
 \noindent\begin{minipage}[c]{.4\textwidth}
   \includegraphics[width=.7\textwidth]{example-2.png}
@@ -180,7 +180,7 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
 \newpage
 \section{Constant propagation}
 
-\subsection{Definzione del problema}
+\subsection{Definizione del problema}
 
 \begin{itemize}
   \item L'obiettivo della \textit{constant propagation} \`e quello di determinare in quali punti del programma le variabili hanno un valore costante.
@@ -233,12 +233,11 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
 \item $Kill[b]$: ogni definizione \lstinline|x = expr| uccide le coppie $(x,c)\in \mathcal{D}$ (dominio)
 \end{itemize}
 
-\subsection{Esempio}
+\subsection{Esempio di esecuzione}
 
 \begin{figure}[h!]
   \centering
   \includegraphics[width=.3\textwidth]{example-3.png}
-  \caption{Esempio 3}
 \end{figure}
 
 \begin{table}[h!]
@@ -249,6 +248,7 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
 \hline
 \rowcolor{blue!30}
  & \multicolumn{2}{c|}{Iterazione 1} \\
+ \hline
 \rowcolor{blue!30}
  & IN[B] & OUT[B] \\
 \hline
@@ -283,7 +283,6 @@ BB14 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 BB15 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
 \end{tabular}
-\caption{Iterazione 1}
 \end{table}
 
 \begin{table}[h!]
@@ -294,6 +293,7 @@ BB15 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
 \rowcolor{blue!30}
   & \multicolumn{2}{c|}{Iterazione 2} \\
+  \hline
 \rowcolor{blue!30}
   & IN[B] & OUT[B] \\
 \hline
@@ -328,7 +328,6 @@ BB14 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
 \end{tabular}
-\caption{Iterazione 2}
 \end{table}
 
 \begin{table}[h!]
@@ -339,6 +338,7 @@ BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   \hline
   \rowcolor{blue!30}
     & \multicolumn{2}{c|}{Iterazione 3} \\
+    \hline
   \rowcolor{blue!30}
     & IN[B] & OUT[B] \\
   \hline
@@ -373,10 +373,13 @@ BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   \hline
   \end{tabular}
-  \caption{Iterazione 3}
 \end{table}
 
-Data la convergenza, si ferma l'esecuzione dell'algoritmo all'iterazione 3.
+L'algoritmo arriva a convergenza all'iterazione 3.
+
+\begin{mdframed}
+    \textbf{MANCA MOTIVAZIONE CONVERGENZA}
+\end{mdframed}
 
 
 
