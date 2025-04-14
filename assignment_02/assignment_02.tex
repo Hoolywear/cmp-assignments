@@ -135,9 +135,9 @@ BB1 & $\boxed{b-a}$ & / \\
     \hline
     Meet Operation (\(\land\)) & $\cap$ \\
     \hline
-    Boundary Condition & $in[entry] = \emptyset $\\
+    Boundary Condition & $out[entry] = entry $\\
     \hline
-    Initial interior points & $in[b] = \mathcal{U} $ \\
+    Initial interior points & $out[b] = \mathcal{U} $ \\
     \hline
   \end{tabular}
   \caption{Dominator analysis}
@@ -203,9 +203,9 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
     \hline
     Meet Operation (\(\land\)) & $\cap$\\
     \hline
-    Boundary Condition & $in[entry]=\emptyset$ \\
+    Boundary Condition & $out[entry]=\emptyset$ \\
     \hline
-    Initial interior points & $in[b]=\mathcal{U}$ \\
+    Initial interior points & $out[b]=\mathcal{U}$ \\
     \hline
   \end{tabular}
   \caption{Constant propagation}
@@ -264,7 +264,7 @@ BB5 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
 \hline
 BB6 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
 \hline
-BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,8)\rbrace$ \\
 \hline
 BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
@@ -309,7 +309,7 @@ BB5 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
 \hline
 BB6 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
 \hline
-BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,8)\rbrace$ \\
 \hline
 BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
