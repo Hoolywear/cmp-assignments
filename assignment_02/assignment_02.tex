@@ -81,7 +81,7 @@ Dove
 \begin{minipage}[c]{.5\textwidth}
 \renewcommand{\arraystretch}{1.5}
 \rowcolors{2}{gray!10}{white}
-\begin{tabular}{|c|l|l|}
+\begin{tabular}{|c|c|c|}
 \hline
 \rowcolor{blue!30}
 BB & \multicolumn{2}{c|}{Iterazione 1} \\
@@ -89,7 +89,9 @@ BB & \multicolumn{2}{c|}{Iterazione 1} \\
 \rowcolor{blue!30}
    & $OUT[B] = \wedge\, IN(succ[b])$ & $IN[B] = Gen[B] \cup (OUT[B] - Kill[B])$ \\
 \hline
-BB7 & $\emptyset$ (\textbf{boundary condition}) & $a-b \cup (\emptyset - \emptyset) = a-b$ \\
+BB8 & / & $\emptyset$ (\textbf{boundary condition}) \\
+\hline
+BB7 & $\emptyset$ & $a-b \cup (\emptyset - \emptyset) = a-b$ \\
 \hline
 BB6 & $a-b$ & $\emptyset \cup (\lbrace a-b\rbrace - \lbrace a-b, b-a\rbrace)=\emptyset$ \\
 \hline
@@ -101,7 +103,7 @@ BB3 & $a-b$ & $b-a \cup (\lbrace a-b\rbrace - \emptyset) =\lbrace b-a,a-b\rbrace
 \hline
 BB2 & $\lbrace b-a\rbrace\cap \lbrace a-a,a-b\rbrace = b-a$ & $\emptyset \cup (\lbrace b-a\rbrace - \emptyset) = b-a$ \\
 \hline
-BB1 & $\boxed{b-a}$ & / \\
+BB1 & $b-a$ & / \\
 \hline
 \end{tabular}
 \end{minipage}
@@ -152,7 +154,7 @@ BB1 & $\boxed{b-a}$ & / \\
 \centering
 \renewcommand{\arraystretch}{1.5}
 \rowcolors{2}{gray!10}{white}
-\begin{tabular}{|c|l|l|}
+\begin{tabular}{|c|c|c|}
 \hline
 \rowcolor{blue!30}
 BB & \multicolumn{2}{c|}{Iterazione 1} \\
@@ -160,7 +162,7 @@ BB & \multicolumn{2}{c|}{Iterazione 1} \\
 \rowcolor{blue!30}
    & $IN[B] = \wedge\, OUT(pred[b])$ & $DOM[B]= B \cup IN[B]$ \\
 \hline
-A & $\emptyset$ (\textbf{boundary condition}) & $A \cup \emptyset = A$ \\
+A & /  & $A$ (\textbf{boundary condition})\\
 \hline
 B & $A$ & $B \cup A=\lbrace A,B \rbrace$ \\
 \hline
@@ -252,7 +254,7 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
 \rowcolor{blue!30}
  & IN[B] & OUT[B] \\
 \hline
-BB1 & $\emptyset$ & $\emptyset$ \\
+BB1 & $\emptyset$ & $\emptyset$ (\textbf{boundary condition}) \\
 \hline
 BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
 \hline
@@ -280,7 +282,7 @@ BB13 & $\lbrace(k,4),(a,4),(b,2),(x,8),(y,8)\rbrace$ & $\lbrace(k,5),(a,4),(b,2)
 \hline
 BB14 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \hline
-BB15 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
+BB15 & $\lbrace(k,4),(a,4)\rbrace$ & / \\
 \hline
 \end{tabular}
 \end{table}
@@ -297,7 +299,7 @@ BB15 & $\lbrace(k,4),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
 \rowcolor{blue!30}
   & IN[B] & OUT[B] \\
 \hline
-BB1 & $\emptyset$ & $\emptyset$ \\
+BB1 & / & $\emptyset$ (\textbf{boundary condition}) \\
 \hline
 BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
 \hline
@@ -323,9 +325,9 @@ BB12 & $\lbrace(a,4),(b,2)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
 BB13 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
 \hline
-BB14 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+BB14 & $\lbrace(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ \\
 \hline
-BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+BB15 & $\lbrace(a,4)\rbrace$ & / \\
 \hline
 \end{tabular}
 \end{table}
@@ -342,7 +344,7 @@ BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   \rowcolor{blue!30}
     & IN[B] & OUT[B] \\
   \hline
-  BB1 & $\emptyset$ & $\emptyset$ \\
+  BB1 & / & $\emptyset$ (\textbf{boundary condition}) \\
   \hline
   BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
   \hline
@@ -354,7 +356,7 @@ BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   \hline
   BB6 & $\lbrace(k,2)\rbrace$ & $\lbrace(k,2),(a,4)\rbrace$ \\
   \hline
-  BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,5)\rbrace$ \\
+  BB7 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,2),(a,4),(x,8)\rbrace$ \\
   \hline
   BB8 & $\lbrace(k,2),(a,4)\rbrace$ & $\lbrace(k,4),(a,4)\rbrace$ \\
   \hline
@@ -368,19 +370,13 @@ BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   \hline
   BB13 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
   \hline
-  BB14 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+  BB14 & $\lbrace(a,4)\rbrace$ & $\lbrace(a,4)\rbrace$ \\
   \hline
-  BB15 & $\lbrace(a,4),(b,2),(y,8)\rbrace$ & $\lbrace(a,4),(b,2),(y,8)\rbrace$ \\
+  BB15 & $\lbrace(a,4)\rbrace$ & / \\
   \hline
   \end{tabular}
 \end{table}
 
-L'algoritmo arriva a convergenza all'iterazione 3.
-
-\begin{mdframed}
-    \textbf{MANCA MOTIVAZIONE CONVERGENZA}
-\end{mdframed}
-
-
+L'algoritmo arriva a convergenza all'iterazione 3 (notiamo in particolare che dalla seconda iterazione non cambia \lstinline|IN[BB9]|, ovvero l'input del blocco \lstinline|WHILE|, unico ad avere predecessori multipli).
 
 \end{document}
