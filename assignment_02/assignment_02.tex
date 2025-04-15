@@ -254,7 +254,7 @@ G & $\lbrace A,B \rbrace \cap \lbrace A,C,F\rbrace = A$ & $G \cup A = \lbrace A,
 \rowcolor{blue!30}
  & IN[B] & OUT[B] \\
 \hline
-BB1 & $\emptyset$ & $\emptyset$ (\textbf{boundary condition}) \\
+BB1 & / & $\emptyset$ (\textbf{boundary condition}) \\
 \hline
 BB2 & $\emptyset$ & $\lbrace(k,2)\rbrace$ \\
 \hline
@@ -377,6 +377,6 @@ BB15 & $\lbrace(a,4)\rbrace$ & / \\
   \end{tabular}
 \end{table}
 
-L'algoritmo arriva a convergenza all'iterazione 3 (notiamo in particolare che dalla seconda iterazione non cambia \lstinline|IN[BB9]|, ovvero l'input del blocco \lstinline|WHILE|, unico ad avere predecessori multipli).
+L'algoritmo arriva a convergenza all'iterazione 2 (notiamo in particolare che nel passaggio dalla seconda iterazione alla terza non cambia \lstinline|IN[BB9]|, ovvero l'input del blocco \lstinline|WHILE|, unico ad avere predecessori multipli).
 
 \end{document}
