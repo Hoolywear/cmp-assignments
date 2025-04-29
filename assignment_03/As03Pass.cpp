@@ -37,7 +37,7 @@ vector<Instruction> FindLoopInv(Loop &L){
 
   vector<Instruction> LoopInv_inst;
 
-  
+
 
 
 
@@ -72,7 +72,7 @@ struct As03Pass: PassInfoMixin<As03Pass> {
 
       // find loop invariant instructions
       vector<Instruction> LoopInv_inst;
-      LoopInv_inst = FindLoopInv(L);
+      LoopInv_inst = FindLoopInv(*L);
 
 
     }
