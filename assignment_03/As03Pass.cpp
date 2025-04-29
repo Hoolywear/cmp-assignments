@@ -27,7 +27,10 @@
 using namespace llvm;
 using namespace std;
 
-
+/*
+* InitializeLoopInst function
+* Initialize the vector LoopInst with all the instructions in the loop passed as parameter
+*/
 void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop *L){
   // Per ogni basic block nel loop
   for (Loop::block_iterator BI = L->block_begin(); BI != L->block_end(); ++BI){
@@ -39,25 +42,26 @@ void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop *L){
   }
 }
 
-
 /*
-* The function find the Loop Invariant Instructions
-* and iterate until convergent
+* FindLoopInv function
+* The function find the Loop Invariant Instructions and iterate until convergent
 * Return the vector with the Loop Invariant Instructions
 */
 vector<Instruction*> FindLoopInv(Loop &L) {
   vector<Instruction*> LoopInst;
-  vector<Instruction*> NonLoopInv_inst;
   vector<Instruction*> LoopInv_inst;
 
   InitializeLoopInst(LoopInst, &L);
 
-  // Qui dovrebbe esserci la logica per trovare le istruzioni invarianti
+
+  for(auto &Inst: LoopInst){
+    outs() << "Istruzione: " << *Inst << "\n";
+  }
+
+  // verificare istruzione binary bitwise, ternario
 
   return LoopInv_inst;
 }
-
-
 
 //-----------------------------------------------------------------------------
 // TestPass implementation
