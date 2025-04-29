@@ -42,20 +42,94 @@ void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop *L){
   }
 }
 
+
+enum linv_t {
+
+  unknown,
+  linv,
+  not_linv
+
+};
+
+
+linv_t isLoopInvOp(Value *op, vector<Instruction*> LoopInst,  vector<Instruction*> LoopInv_inst){
+
+  if ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end()  ){
+    return linv;
+  }
+  else if ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) {
+    return not_linv;
+  }
+  else if ( isa<ConstantInt>(op) ){
+    return linv;
+  }
+
+  return unknown;
+
+}
+
+
+
+/*
+ *  Looks for loop invariant instructions and save them on LoopInv_ins 
+ */
+void LoopInvInstChecks(vector<Instruction*> LoopInst, vector<Instruction*> LoopInv_inst){
+
+  // until convergent
+  while (!LoopInst.empty()){
+    // for all instructions in loop
+    for (auto &I: LoopInst){
+      auto it = find(LoopInst.begin(), LoopInst.end(), I );
+      // if is a valid operations for loop invariant 
+      if ( !I->isBinaryOp() && !I->isUnaryOp() && !I->isBitwiseLogicOp() ) {
+        LoopInst.erase(it);
+      }
+      else{
+        bool skip = false;
+
+        for (auto Op = I->operands().begin(); Op != I->operands().end(); ++Op) {
+          linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst);
+
+          if ( op_t == unknown ){
+            skip = true;
+            break;
+          }
+          else if ( op_t ==  not_linv ){
+            LoopInst.erase(it);
+            skip = true;
+            break;
+          }
+
+        }
+        if ( !skip ){
+          LoopInv_inst.push_back(I);
+          LoopInst.erase(it);
+        }
+      }
+    }
+  }
+}
+
 /*
 * FindLoopInv function
 * The function find the Loop Invariant Instructions and iterate until convergent
 * Return the vector with the Loop Invariant Instructions
 */
 vector<Instruction*> FindLoopInv(Loop &L) {
+  /*
+   * LoopInst contains all loop instructions
+   */
   vector<Instruction*> LoopInst;
   vector<Instruction*> LoopInv_inst;
 
+  // initialize LoopInst with all instructions
   InitializeLoopInst(LoopInst, &L);
 
+  // checks which instructions is loop invariant
+  LoopInvInstChecks(LoopInst, LoopInv_inst);
 
-  for(auto &Inst: LoopInst){
-    outs() << "Istruzione: " << *Inst << "\n";
+  for ( auto &I: LoopInv_inst ){
+    outs() << "Loop inv inst: " << *I << "\n";
   }
 
   // verificare istruzione binary bitwise, ternario
@@ -69,7 +143,6 @@ vector<Instruction*> FindLoopInv(Loop &L) {
 // No need to expose the internals of the pass to the outside world - keep
 // everything in an anonymous namespace.
 namespace {
-
 
 // New PM implementation
 struct As03Pass: PassInfoMixin<As03Pass> {
