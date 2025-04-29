@@ -20,6 +20,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include <iostream>
 #include <vector>
 
@@ -27,22 +28,33 @@ using namespace llvm;
 using namespace std;
 
 
+void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop *L){
+  // Per ogni basic block nel loop
+  for (Loop::block_iterator BI = L->block_begin(); BI != L->block_end(); ++BI){
+    BasicBlock *B = *BI;
+    // Per ogni istruzione nel basic block
+    for (auto &I : *B){
+      LoopInst.push_back(&I);  // Aggiungi puntatore all'istruzione
+    }
+  }
+}
+
 
 /*
 * The function find the Loop Invariant Instructions
 * and iterate until convergent
 * Return the vector with the Loop Invariant Instructions
 */
-vector<Instruction> FindLoopInv(Loop &L){
+vector<Instruction*> FindLoopInv(Loop &L) {
+  vector<Instruction*> LoopInst;
+  vector<Instruction*> NonLoopInv_inst;
+  vector<Instruction*> LoopInv_inst;
 
-  vector<Instruction> LoopInv_inst;
+  InitializeLoopInst(LoopInst, &L);
 
-
-
-
+  // Qui dovrebbe esserci la logica per trovare le istruzioni invarianti
 
   return LoopInv_inst;
-  
 }
 
 
@@ -67,14 +79,10 @@ struct As03Pass: PassInfoMixin<As03Pass> {
 
     // Get loop info
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+    vector<Instruction*> LoopInv_inst;
     // loop iterator
-    for (auto &L: LI){
-
-      // find loop invariant instructions
-      vector<Instruction> LoopInv_inst;
+    for (auto &L : LI) {
       LoopInv_inst = FindLoopInv(*L);
-
-
     }
 
   	return PreservedAnalyses::all();
