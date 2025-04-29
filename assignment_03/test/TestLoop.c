@@ -4,6 +4,7 @@ int foo() {
     int b = 0;
     while ( a == 1 ) {
         int c = a + b;
+        
     }
 
     int caca = 200;
