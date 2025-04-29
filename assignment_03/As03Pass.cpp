@@ -20,8 +20,32 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
+#include <iostream>
+#include <vector>
 
 using namespace llvm;
+using namespace std;
+
+
+
+/*
+* The function find the Loop Invariant Instructions
+* and iterate until convergent
+* Return the vector with the Loop Invariant Instructions
+*/
+vector<Instruction> FindLoopInv(Loop &L){
+
+  vector<Instruction> LoopInv_inst;
+
+  
+
+
+
+  return LoopInv_inst;
+  
+}
+
+
 
 //-----------------------------------------------------------------------------
 // TestPass implementation
@@ -39,11 +63,19 @@ struct As03Pass: PassInfoMixin<As03Pass> {
   /* APPUNTI
    *	andiamo ad estendere questa funzione
    */
-  PreservedAnalyses run(Function &F, FunctionAnalysisManager &) {
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
 
-  	/*
-    CODICE PASSO
-    */
+    // Get loop info
+    LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+    // loop iterator
+    for (auto &L: LI){
+
+      // find loop invariant instructions
+      vector<Instruction> LoopInv_inst;
+      LoopInv_inst = FindLoopInv(L);
+
+
+    }
 
   	return PreservedAnalyses::all();
 }
