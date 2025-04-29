@@ -33,7 +33,7 @@ elif [ -z $OPT_PASS ]; then
 fi
 
 # Complete library name, to be changed for each assignment
-LIB_NAME="build/libAs01Pass$LIB_EXT"
+LIB_NAME="build/libAs03Pass$LIB_EXT"
 
 if [ -f $COMPLETE_FILEPATH ]; then
     echo "Compiling source file $COMPLETE_FILEPATH" as "${COMPLETE_FILEPATH%.*}.ll"
