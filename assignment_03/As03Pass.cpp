@@ -60,7 +60,7 @@ struct As03Pass: PassInfoMixin<As03Pass> {
 // New PM Registration
 //-----------------------------------------------------------------------------
 llvm::PassPluginLibraryInfo getTestPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "As02Pass", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "As03Pass", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
