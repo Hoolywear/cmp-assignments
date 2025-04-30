@@ -21,6 +21,7 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Instructions.h"
 #include <iostream>
 #include <vector>
 
@@ -31,9 +32,9 @@ using namespace std;
 * InitializeLoopInst function
 * Initialize the vector LoopInst with all the instructions in the loop passed as parameter
 */
-void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop *L){
+void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop &L){
   // Per ogni basic block nel loop
-  for (Loop::block_iterator BI = L->block_begin(); BI != L->block_end(); ++BI){
+  for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI){
     BasicBlock *B = *BI;
     // Per ogni istruzione nel basic block
     for (auto &I : *B){
@@ -52,7 +53,16 @@ enum linv_t {
 };
 
 
-linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst){
+linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
+  bool isInsideLoop = false;
+  if (dyn_cast<Instruction>(op)) {
+    Instruction* OpInst = dyn_cast<Instruction>(op);
+    outs() << *OpInst << '\n';
+    if (L.contains(OpInst)) {
+      outs() << "INSIDE\n";
+      isInsideLoop = true;
+    }
+  }
 
   if ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end()  ){
     outs() << "LINV instr: " << *op << '\n';
@@ -61,6 +71,14 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
   else if ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) {
     outs() << "NOT LINV instr" << *op << '\n';
     return not_linv;
+  }
+  else if ( isa<PHINode>(op) && isInsideLoop) {
+    outs() << "NOT LINV instr" << *op << '\n';
+    return not_linv;
+  }
+  else if (!isInsideLoop) {
+    outs() << "LINV instr" << *op << '\n';
+    return linv;
   }
   else if ( isa<ConstantInt>(op) ){
     outs() << "LINV instr" << *op << '\n';
@@ -77,7 +95,7 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
 /*
  *  Looks for loop invariant instructions and save them on LoopInv_ins 
  */
-void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &LoopInv_inst){
+void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &LoopInv_inst, Loop &L){
 
   // run through the vector until convergence is met (no unknown instructions left)
   while (!LoopInst.empty()){
@@ -104,7 +122,7 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
         bool skip = false;
 
         for (auto Op = I->operands().begin(); Op != I->operands().end(); ++Op) {
-          linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst);
+          linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst, L);
 
           outs() << "linv_t: " << op_t << '\n';
 
@@ -144,10 +162,10 @@ vector<Instruction*> FindLoopInv(Loop &L) {
   vector<Instruction*> LoopInv_inst;
 
   // initialize LoopInst with all instructions
-  InitializeLoopInst(LoopInst, &L);
+  InitializeLoopInst(LoopInst, L);
 
   // check which instructions are loop invariant
-  LoopInvInstChecks(LoopInst, LoopInv_inst);
+  LoopInvInstChecks(LoopInst, LoopInv_inst, L);
 
   for ( auto &I: LoopInv_inst ){
     outs() << "Loop inv inst: " << *I << "\n";
