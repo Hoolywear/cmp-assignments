@@ -65,9 +65,13 @@ enum linv_t {
 bool isInsideLoop(Value* op, Loop &L){
   if (dyn_cast<Instruction>(op)) {
     Instruction* OpInst = dyn_cast<Instruction>(op);
-    outs() << *OpInst << '\n';
+    # ifdef DEBUG
+      outs() << *OpInst << '\n';
+    # endif
     if (L.contains(OpInst)) {
-      outs() << "INSIDE THE LOOP\n";
+      # ifdef DEBUG
+        outs() << "INSIDE THE LOOP\n";
+      # endif
       return true;
     }
   }
@@ -82,16 +86,21 @@ bool isInsideLoop(Value* op, Loop &L){
 linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
   // check if the operand is loop invariant
   if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
-    outs() << "LINV instr: " << *op << '\n';
+    # ifdef DEBUG
+      outs() << "LINV instr: " << *op << '\n';
+    # endif
     return linv;
   }
   // check if the operand is not loop invariant 
   else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop(op, L) ) ) {   // already non loop inv.
-    outs() << "NOT LINV instr" << *op << '\n';
+    # ifdef DEBUG
+      outs() << "NOT LINV instr" << *op << '\n';
+    # endif
     return not_linv;
   }
+  # ifdef DEBUG
   outs() << "UNKNOWN instr" << *op << '\n';
-
+  # endif
   return unknown;
 }
 
@@ -104,33 +113,43 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
 
   // run through the vector until convergence is met (no unknown instructions left)
   while (!LoopInst.empty()){
+
+    # ifdef DEBUG 
+      outs() << "Istruzioni ancora unknown:\n";
+      for (auto &I: LoopInst)
+        outs() << *I << '\n';
+      outs() << "--------------------------\n";
+    #endif
+
     // for all instructions in loop
-    outs() << "Istruzioni ancora unknown:\n";
-    for (auto &I: LoopInst)
-      outs() << *I << '\n';
-    outs() << "--------------------------\n";
     for (auto it = LoopInst.begin(); it != LoopInst.end();){
       auto I = *it;
-      outs() << "Istruzione attualmente analizzata: " << *I << '\n';
+      # ifdef DEBUG
+        outs() << "Istruzione attualmente analizzata: " << *I << '\n';
+      # endif
       // retrieve current position inside the vector
       // auto it = find(LoopInst.begin(), LoopInst.end(), I );
       // if is a valid instruction type for loop invariant checks
       if ( !I->isBinaryOp() && !I->isUnaryOp() && !I->isBitwiseLogicOp() ) {
-        outs() << "ELIMINO perché non unary o binary\n";
+        # ifdef DEBUG
+          outs() << "ELIMINO perché non unary o binary\n";
+        # endif
         LoopInst.erase(it);
-        outs() << "Istruzioni ancora unknown POST ERASE:\n";
-        for (auto &I: LoopInst)
-          outs() << *I << '\n';
-        outs() << "--------------------------\n";
+        # ifdef DEBUG
+          outs() << "Istruzioni ancora unknown POST ERASE:\n";
+          for (auto &I: LoopInst)
+            outs() << *I << '\n';
+          outs() << "--------------------------\n";
+        # endif
       }
       else{
         bool skip = false;
 
         for (auto Op = I->operands().begin(); Op != I->operands().end(); ++Op) {
           linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst, L);
-
-          outs() << "linv_t: " << op_t << '\n';
-
+          # ifdef DEBUG
+            outs() << "linv_t: " << op_t << '\n';
+          # endif
           if ( op_t == unknown ){
             skip = true;
             it++;
@@ -145,7 +164,9 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
         }
         // if none of the operands are loop-variant/unknown, the instruction can be labeled as loop-invariant
         if ( !skip ){
-          outs() << "Pushing back instruction " << *I << '\n';
+          # ifdef DEBUG
+            outs() << "Pushing back instruction " << *I << '\n';
+          # endif
           LoopInv_inst.push_back(I);
           LoopInst.erase(it);
         }
