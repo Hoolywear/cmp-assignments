@@ -30,6 +30,13 @@ using namespace std;
 
 #define DEBUG
 
+#ifdef DEBUG
+#define DEBUG_MAX_PASSES 2
+#else
+#include <climits> 
+#define DEBUG_MAX_PASSES INT_MAX
+#endif
+
 /*
 * InitializeLoopInst function
 * Initialize the vector LoopInst with all the instructions in the loop passed as parameter
@@ -88,19 +95,19 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
   // check if the operand is loop invariant
   if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
     # ifdef DEBUG
-      outs() << "LINV instr: " << *op << '\n';
+      outs() << "LINV operand: " << *op << '\n';
     # endif
     return linv;
   }
   // check if the operand is not loop invariant 
   else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) == LoopInst.end() ) || (  isInsideLoop(op, L) && isa<PHINode>(op) ) ) {   // already non loop inv.
     # ifdef DEBUG
-      outs() << "NOT LINV instr" << *op << '\n';
+      outs() << "NOT LINV operand" << *op << '\n';
     # endif
     return not_linv;
   }
   # ifdef DEBUG
-  outs() << "UNKNOWN instr" << *op << '\n';
+  outs() << "UNKNOWN operand" << *op << '\n';
   # endif
   return unknown;
 }
@@ -113,9 +120,12 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
 void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &LoopInv_inst, Loop &L){
 
   // run through the vector until convergence is met (no unknown instructions left)
-  while (!LoopInst.empty()){
+  int itnum = 0;
+  while (!LoopInst.empty() && itnum < DEBUG_MAX_PASSES){
 
     # ifdef DEBUG 
+    itnum++;
+      outs() << "=======================\nITERAZIONE NUMERO " << itnum << "\n=======================\n";
       outs() << "Istruzioni ancora unknown:\n";
       for (auto &I: LoopInst)
         outs() << *I << '\n';
@@ -157,6 +167,9 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
             break;
           }
           else if ( op_t ==  not_linv ){
+            # ifdef DEBUG
+              outs() << "ELIMINO perché not_linv\n";
+            # endif
             LoopInst.erase(it);
             skip = true;
             break;
@@ -166,14 +179,18 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
         // if none of the operands are loop-variant/unknown, the instruction can be labeled as loop-invariant
         if ( !skip ){
           # ifdef DEBUG
-            outs() << "Pushing back instruction " << *I << '\n';
+            outs() << "Pushing back LOOP-INVARIANT instruction " << *I << '\n';
           # endif
           LoopInv_inst.push_back(I);
           LoopInst.erase(it);
         }
       }
+      outs() << "--------------------------\n";
     }
+    outs() << "fine iterazione\n--------------------------\n";
+
   }
+  outs() << "====================\nFINE WHILE\n====================\n";
 }
 
 /*
