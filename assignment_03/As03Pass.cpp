@@ -64,25 +64,13 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
     }
   }
 
-  if ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end()  ){
+  if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
     outs() << "LINV instr: " << *op << '\n';
     return linv;
   }
-  else if ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) {
+  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop ) ) {   // already non loop inv.
     outs() << "NOT LINV instr" << *op << '\n';
     return not_linv;
-  }
-  else if ( isa<PHINode>(op) && isInsideLoop) {
-    outs() << "NOT LINV instr" << *op << '\n';
-    return not_linv;
-  }
-  else if (!isInsideLoop) {
-    outs() << "LINV instr" << *op << '\n';
-    return linv;
-  }
-  else if ( isa<ConstantInt>(op) ){
-    outs() << "LINV instr" << *op << '\n';
-    return linv;
   }
   outs() << "UNKNOWN instr" << *op << '\n';
 
