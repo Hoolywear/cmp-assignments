@@ -16,4 +16,5 @@ void foo(int a, int b, int c, int e, int f, int d, int x){
         d = a + 1 ;
         f = e + 2 ;
     }
+    return 0; 
 }
