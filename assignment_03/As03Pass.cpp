@@ -84,6 +84,7 @@ bool isInsideLoop(Value* op, Loop &L){
 * Return the type of the operand (linv_t)
 */
 linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
+  
   // check if the operand is loop invariant
   if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
     # ifdef DEBUG
@@ -92,7 +93,7 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
     return linv;
   }
   // check if the operand is not loop invariant 
-  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop(op, L) ) ) {   // already non loop inv.
+  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) == LoopInst.end() ) || (  isInsideLoop(op, L) && isa<PHINode>(op) ) ) {   // already non loop inv.
     # ifdef DEBUG
       outs() << "NOT LINV instr" << *op << '\n';
     # endif
