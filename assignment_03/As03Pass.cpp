@@ -52,17 +52,21 @@ enum linv_t {
 };
 
 
-linv_t isLoopInvOp(Value *op, vector<Instruction*> LoopInst,  vector<Instruction*> LoopInv_inst){
+linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst){
 
   if ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end()  ){
+    outs() << "LINV instr: " << *op << '\n';
     return linv;
   }
   else if ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) {
+    outs() << "NOT LINV instr" << *op << '\n';
     return not_linv;
   }
   else if ( isa<ConstantInt>(op) ){
+    outs() << "LINV instr" << *op << '\n';
     return linv;
   }
+  outs() << "UNKNOWN instr" << *op << '\n';
 
   return unknown;
 
@@ -73,7 +77,7 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> LoopInst,  vector<Instruction
 /*
  *  Looks for loop invariant instructions and save them on LoopInv_ins 
  */
-void LoopInvInstChecks(vector<Instruction*> LoopInst, vector<Instruction*> LoopInv_inst){
+void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &LoopInv_inst){
 
   // until convergent
   while (!LoopInst.empty()){
@@ -90,6 +94,8 @@ void LoopInvInstChecks(vector<Instruction*> LoopInst, vector<Instruction*> LoopI
         for (auto Op = I->operands().begin(); Op != I->operands().end(); ++Op) {
           linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst);
 
+          outs() << op_t << '\n';
+
           if ( op_t == unknown ){
             skip = true;
             break;
@@ -102,6 +108,7 @@ void LoopInvInstChecks(vector<Instruction*> LoopInst, vector<Instruction*> LoopI
 
         }
         if ( !skip ){
+          outs() << "Pushing back instruction " << *I << '\n';
           LoopInv_inst.push_back(I);
           LoopInst.erase(it);
         }
