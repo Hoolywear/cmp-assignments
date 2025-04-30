@@ -1,11 +1,17 @@
 
 
-void foo(int a, int b, int c){
+void foo(){
 
+    int a = 100; 
+    int b = 200;
+    int c = 300;
+    
     for ( int i = 0; i<5; i++ ){
+        
         if ( i == 3 ){
-            a = b + c;
-            int f = a + 2;
+            a = a + b;
+            b = b + b;
+            c = b + a;
         }
         else {
             int e = 3;
