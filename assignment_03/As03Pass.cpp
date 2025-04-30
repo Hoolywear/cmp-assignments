@@ -36,7 +36,49 @@ using namespace std;
 #define D(x)
 #endif
 
+// Function that checks wether an operand from a BinaryOp is considered loop-invariant
+bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
 
+  return false;
+}
+
+// Function that checks wether a BinaryOp from a loop is considered loop-invariant
+bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
+  // Retrieve operands
+  Value *op1 = I.getOperand(0);
+  Value *op2 = I.getOperand(1);
+
+  D("\tBINARY OP:");
+  D("\tOperand 1: " << *op1 );
+  D("\tOperand 2: " << *op2 );
+
+  // Check if both are loop-invariant; if so, the instruction itself can be considered loop-invariant
+  if (isLoopInvOp(op1, linvInstr, L) && isLoopInvOp(op2, linvInstr, L)) {
+    return true;
+  }
+
+  return false;
+}
+
+// Function to retrieve loop-invariant instructions from a specific loop
+void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
+  // TODO: implement logic to iterate over nested loops
+
+  // Iterate over loop instructions (via its BBs first)
+  for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI) {
+    BasicBlock *B = *BI;
+    // Iterate over BB instructions
+    for (auto &I: *B) {
+      D(I);
+      // Check for loop invariance applies only to BinaryOp instructions
+      if (I.isBinaryOp() && isLoopInvInstr(I, linvInstr, L)) {
+        D("\t^ IS LOOP INVARIANT OP ^");
+      }
+    }
+  }
+
+  return;
+}
 
 //-----------------------------------------------------------------------------
 // TestPass implementation
@@ -54,12 +96,19 @@ struct As03Pass: PassInfoMixin<As03Pass> {
 
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+
+    // Instruction vectors to be reused for each loop
+    vector<Instruction*> loopInvInstr;
     
     // Iterate on all TOP-LEVEL loops from function
     for (auto &L: LI) {
+      getLoopInvInstructions(loopInvInstr, *L);
 
-      //TODO: work to be done on each top-level loop
-      continue;
+      #ifdef DEBUG
+      D("======\nLoop-independent instructions:\n======")
+      for (auto I: loopInvInstr)
+        D(*I);
+      #endif
     }
 
   	return PreservedAnalyses::all();
