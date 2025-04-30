@@ -79,12 +79,13 @@ linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instructio
  */
 void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &LoopInv_inst){
 
-  // until convergent
+  // run through the vector until convergence is met (no unknown instructions left)
   while (!LoopInst.empty()){
     // for all instructions in loop
     for (auto &I: LoopInst){
+      // retrieve current position inside the vector
       auto it = find(LoopInst.begin(), LoopInst.end(), I );
-      // if is a valid operations for loop invariant 
+      // if is a valid instruction type for loop invariant checks
       if ( !I->isBinaryOp() && !I->isUnaryOp() && !I->isBitwiseLogicOp() ) {
         LoopInst.erase(it);
       }
@@ -107,6 +108,7 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
           }
 
         }
+        // if none of the operands are loop-variant/unknown, the instruction can be labeled as loop-invariant
         if ( !skip ){
           outs() << "Pushing back instruction " << *I << '\n';
           LoopInv_inst.push_back(I);
@@ -132,7 +134,7 @@ vector<Instruction*> FindLoopInv(Loop &L) {
   // initialize LoopInst with all instructions
   InitializeLoopInst(LoopInst, &L);
 
-  // checks which instructions is loop invariant
+  // check which instructions are loop invariant
   LoopInvInstChecks(LoopInst, LoopInv_inst);
 
   for ( auto &I: LoopInv_inst ){
