@@ -60,7 +60,7 @@ enum linv_t {
 * isInsideLoop function
 * Check if the operand is inside the loop or not
 */
-bool isInsideLoop(Instruction* OpInst, Loop &L){
+bool isInsideLoop(Instruction* op, Loop &L){
   if (dyn_cast<Instruction>(op)) {
     Instruction* OpInst = dyn_cast<Instruction>(op);
     outs() << *OpInst << '\n';
