@@ -1,6 +1,6 @@
 
 
-int loop(int a, int b, int c, int e, int f) {
+int loop(int a, int b, int c, int e, int f, int g) {
 
 
     for(int i=0; i<10; i++){
@@ -12,6 +12,8 @@ int loop(int a, int b, int c, int e, int f) {
             f = e + b;
             a =  j + 2;
             f = a + e ;
+            g = e + f;
+            
         }
 
     }
