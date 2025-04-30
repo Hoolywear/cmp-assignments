@@ -28,6 +28,8 @@
 using namespace llvm;
 using namespace std;
 
+#define DEBUG
+
 /*
 * InitializeLoopInst function
 * Initialize the vector LoopInst with all the instructions in the loop passed as parameter
@@ -60,7 +62,7 @@ enum linv_t {
 * isInsideLoop function
 * Check if the operand is inside the loop or not
 */
-bool isInsideLoop(Instruction* op, Loop &L){
+bool isInsideLoop(Value* op, Loop &L){
   if (dyn_cast<Instruction>(op)) {
     Instruction* OpInst = dyn_cast<Instruction>(op);
     outs() << *OpInst << '\n';
@@ -79,12 +81,12 @@ bool isInsideLoop(Instruction* op, Loop &L){
 */
 linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
   // check if the operand is loop invariant
-  if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(*op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
+  if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
     outs() << "LINV instr: " << *op << '\n';
     return linv;
   }
   // check if the operand is not loop invariant 
-  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop(*op, L) ) ) {   // already non loop inv.
+  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop(op, L) ) ) {   // already non loop inv.
     outs() << "NOT LINV instr" << *op << '\n';
     return not_linv;
   }
