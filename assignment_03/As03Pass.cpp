@@ -31,194 +31,12 @@ using namespace std;
 #define DEBUG
 
 #ifdef DEBUG
-#define DEBUG_MAX_PASSES 2
+#define D(x) llvm::outs() << x << '\n';
 #else
-#include <climits> 
-#define DEBUG_MAX_PASSES INT_MAX
+#define D(x)
 #endif
 
-/*
-* InitializeLoopInst function
-* Initialize the vector LoopInst with all the instructions in the loop passed as parameter
-*/
-void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop &L){
-  // Per ogni basic block nel loop
-  for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI){
-    BasicBlock *B = *BI;
-    // Per ogni istruzione nel basic block
-    for (auto &I : *B){
-      LoopInst.push_back(&I);  // Aggiungi puntatore all'istruzione
-    }
-  }
-}
 
-/*
-* loop invariant type
-* unknown: the instruction is not yet classified
-* linv: the instruction is loop invariant
-* not_linv: the instruction is not loop invariant
-*/
-enum linv_t {
-  unknown,
-  linv,
-  not_linv
-};
-
-
-/*
-* isInsideLoop function
-* Check if the operand is inside the loop or not
-*/
-bool isInsideLoop(Value* op, Loop &L){
-  if (dyn_cast<Instruction>(op)) {
-    Instruction* OpInst = dyn_cast<Instruction>(op);
-    # ifdef DEBUG
-      outs() << *OpInst << '\n';
-    # endif
-    if (L.contains(OpInst)) {
-      # ifdef DEBUG
-        outs() << "INSIDE THE LOOP\n";
-      # endif
-      return true;
-    }
-  }
-  return false;
-}
-
-/*
-* isLoopInvOp function
-* Check if the operand is loop invariant or not
-* Return the type of the operand (linv_t)
-*/
-linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
-  
-  // check if the operand is loop invariant
-  if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
-    # ifdef DEBUG
-      outs() << "LINV operand: " << *op << '\n';
-    # endif
-    return linv;
-  }
-  // check if the operand is not loop invariant 
-  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) == LoopInst.end() ) || (  isInsideLoop(op, L) && isa<PHINode>(op) ) ) {   // already non loop inv.
-    # ifdef DEBUG
-      outs() << "NOT LINV operand" << *op << '\n';
-    # endif
-    return not_linv;
-  }
-  # ifdef DEBUG
-  outs() << "UNKNOWN operand" << *op << '\n';
-  # endif
-  return unknown;
-}
-
-
-
-/*
- *  Looks for loop invariant instructions and save them on LoopInv_ins 
- */
-void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &LoopInv_inst, Loop &L){
-
-  // run through the vector until convergence is met (no unknown instructions left)
-  int itnum = 0;
-  while (!LoopInst.empty() && itnum < DEBUG_MAX_PASSES){
-
-    # ifdef DEBUG 
-    itnum++;
-      outs() << "=======================\nITERAZIONE NUMERO " << itnum << "\n=======================\n";
-      outs() << "Istruzioni ancora unknown:\n";
-      for (auto &I: LoopInst)
-        outs() << *I << '\n';
-      outs() << "--------------------------\n";
-    #endif
-
-    // for all instructions in loop
-    for (auto it = LoopInst.begin(); it != LoopInst.end();){
-      auto I = *it;
-      # ifdef DEBUG
-        outs() << "Istruzione attualmente analizzata: " << *I << '\n';
-      # endif
-      // retrieve current position inside the vector
-      // auto it = find(LoopInst.begin(), LoopInst.end(), I );
-      // if is a valid instruction type for loop invariant checks
-      if ( !I->isBinaryOp() && !I->isUnaryOp() && !I->isBitwiseLogicOp() ) {
-        # ifdef DEBUG
-          outs() << "ELIMINO perché non unary o binary\n";
-        # endif
-        LoopInst.erase(it);
-        # ifdef DEBUG
-          outs() << "Istruzioni ancora unknown POST ERASE:\n";
-          for (auto &I: LoopInst)
-            outs() << *I << '\n';
-          outs() << "--------------------------\n";
-        # endif
-      }
-      else{
-        bool skip = false;
-
-        for (auto Op = I->operands().begin(); Op != I->operands().end(); ++Op) {
-          linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst, L);
-          # ifdef DEBUG
-            outs() << "linv_t: " << op_t << '\n';
-          # endif
-          if ( op_t == unknown ){
-            skip = true;
-            it++;
-            break;
-          }
-          else if ( op_t ==  not_linv ){
-            # ifdef DEBUG
-              outs() << "ELIMINO perché not_linv\n";
-            # endif
-            LoopInst.erase(it);
-            skip = true;
-            break;
-          }
-
-        }
-        // if none of the operands are loop-variant/unknown, the instruction can be labeled as loop-invariant
-        if ( !skip ){
-          # ifdef DEBUG
-            outs() << "Pushing back LOOP-INVARIANT instruction " << *I << '\n';
-          # endif
-          LoopInv_inst.push_back(I);
-          LoopInst.erase(it);
-        }
-      }
-      outs() << "--------------------------\n";
-    }
-    outs() << "fine iterazione\n--------------------------\n";
-
-  }
-  outs() << "====================\nFINE WHILE\n====================\n";
-}
-
-/*
-* FindLoopInv function
-* The function find the Loop Invariant Instructions and iterate until convergent
-* Return the vector with the Loop Invariant Instructions
-*/
-vector<Instruction*> FindLoopInv(Loop &L) {
-  /*
-   * LoopInst contains all loop instructions
-   */
-  vector<Instruction*> LoopInst;
-  vector<Instruction*> LoopInv_inst;
-
-  // initialize LoopInst with all instructions
-  InitializeLoopInst(LoopInst, L);
-
-  // check which instructions are loop invariant
-  LoopInvInstChecks(LoopInst, LoopInv_inst, L);
-
-  for ( auto &I: LoopInv_inst ){
-    outs() << "Loop inv inst: " << *I << "\n";
-  }
-
-  // verificare istruzione binary bitwise, ternario
-
-  return LoopInv_inst;
-}
 
 //-----------------------------------------------------------------------------
 // TestPass implementation
@@ -232,17 +50,16 @@ struct As03Pass: PassInfoMixin<As03Pass> {
   // Main entry point, takes IR unit to run the pass on (&F) and the
   // corresponding pass manager (to be queried if need be)
   
-  /* APPUNTI
-   *	andiamo ad estendere questa funzione
-   */
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
 
-    // Get loop info
+    // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
-    vector<Instruction*> LoopInv_inst;
-    // loop iterator
-    for (auto &L : LI) {
-      LoopInv_inst = FindLoopInv(*L);
+    
+    // Iterate on all TOP-LEVEL loops from function
+    for (auto &L: LI) {
+
+      //TODO: work to be done on each top-level loop
+      continue;
     }
 
   	return PreservedAnalyses::all();
