@@ -43,39 +43,54 @@ void InitializeLoopInst(std::vector<Instruction*> &LoopInst, Loop &L){
   }
 }
 
-
+/*
+* loop invariant type
+* unknown: the instruction is not yet classified
+* linv: the instruction is loop invariant
+* not_linv: the instruction is not loop invariant
+*/
 enum linv_t {
-
   unknown,
   linv,
   not_linv
-
 };
 
 
-linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
-  bool isInsideLoop = false;
+/*
+* isInsideLoop function
+* Check if the operand is inside the loop or not
+*/
+bool isInsideLoop(Instruction* OpInst, Loop &L){
   if (dyn_cast<Instruction>(op)) {
     Instruction* OpInst = dyn_cast<Instruction>(op);
     outs() << *OpInst << '\n';
     if (L.contains(OpInst)) {
-      outs() << "INSIDE\n";
-      isInsideLoop = true;
+      outs() << "INSIDE THE LOOP\n";
+      return true;
     }
   }
+  return false;
+}
 
-  if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
+/*
+* isLoopInvOp function
+* Check if the operand is loop invariant or not
+* Return the type of the operand (linv_t)
+*/
+linv_t isLoopInvOp(Value *op, vector<Instruction*> &LoopInst,  vector<Instruction*> &LoopInv_inst, Loop &L){
+  // check if the operand is loop invariant
+  if ( ( find(LoopInv_inst.begin(), LoopInv_inst.end(), op ) != LoopInv_inst.end() ) || (!isInsideLoop(*op, L)) || ( isa<ConstantInt>(op) ) ){  // already loop invariant
     outs() << "LINV instr: " << *op << '\n';
     return linv;
   }
-  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop ) ) {   // already non loop inv.
+  // check if the operand is not loop invariant 
+  else if (  ( find(LoopInst.begin(), LoopInst.end(), op ) != LoopInst.end() ) || ( isa<PHINode>(op) && isInsideLoop(*op, L) ) ) {   // already non loop inv.
     outs() << "NOT LINV instr" << *op << '\n';
     return not_linv;
   }
   outs() << "UNKNOWN instr" << *op << '\n';
 
   return unknown;
-
 }
 
 
