@@ -82,12 +82,23 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
   // run through the vector until convergence is met (no unknown instructions left)
   while (!LoopInst.empty()){
     // for all instructions in loop
-    for (auto &I: LoopInst){
+    outs() << "Istruzioni ancora unknown:\n";
+    for (auto &I: LoopInst)
+      outs() << *I << '\n';
+    outs() << "--------------------------\n";
+    for (auto it = LoopInst.begin(); it != LoopInst.end();){
+      auto I = *it;
+      outs() << "Istruzione attualmente analizzata: " << *I << '\n';
       // retrieve current position inside the vector
-      auto it = find(LoopInst.begin(), LoopInst.end(), I );
+      // auto it = find(LoopInst.begin(), LoopInst.end(), I );
       // if is a valid instruction type for loop invariant checks
       if ( !I->isBinaryOp() && !I->isUnaryOp() && !I->isBitwiseLogicOp() ) {
+        outs() << "ELIMINO perché non unary o binary\n";
         LoopInst.erase(it);
+        outs() << "Istruzioni ancora unknown POST ERASE:\n";
+        for (auto &I: LoopInst)
+          outs() << *I << '\n';
+        outs() << "--------------------------\n";
       }
       else{
         bool skip = false;
@@ -95,10 +106,11 @@ void LoopInvInstChecks(vector<Instruction*> &LoopInst, vector<Instruction*> &Loo
         for (auto Op = I->operands().begin(); Op != I->operands().end(); ++Op) {
           linv_t op_t = isLoopInvOp(*Op, LoopInst, LoopInv_inst);
 
-          outs() << op_t << '\n';
+          outs() << "linv_t: " << op_t << '\n';
 
           if ( op_t == unknown ){
             skip = true;
+            it++;
             break;
           }
           else if ( op_t ==  not_linv ){
