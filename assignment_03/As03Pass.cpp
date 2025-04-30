@@ -36,9 +36,33 @@ using namespace std;
 #define D(x)
 #endif
 
+bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L);
+
 // Function that checks wether an operand from a BinaryOp is considered loop-invariant
 bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
+  D("\t\tEntered isLoopInvOp for " << *OP);
+  // Cast from Value to Instruction to perform checks
+  if (dyn_cast<Instruction>(OP)) {
+    Instruction *OpInst = dyn_cast<Instruction>(OP);
 
+    if (find(linvInstr.begin(), linvInstr.end(), OpInst) != linvInstr.end()) {
+      D("\t\tOperand already labeled as loop-invariant");
+      return true;
+    } else if (!L.contains(OpInst)) {
+      D("\t\tOperand defined outside the loop -> labeling as linv");
+      return true;
+    } else if (isa<ConstantInt>(OpInst)) {
+      D("\t\tOperand is constant -> labeling as linv");
+      return true;
+    } else if (!OpInst->isBinaryOp()) { // If inside loop, not already linv, not constant, and not BinaryOp, then is not linv
+      D("\t\tOperand defined inside the loop and not a BinaryOp -> not linv");
+      return false;
+    } else if (isLoopInvInstr(*OpInst, linvInstr, L)) { // Cannot determine wether the operand is linv or not: recursive call to isLoopInvInstr(OPERATOR)
+      return true;
+    }
+  }
+
+  D("FALLBACK EXIT");
   return false;
 }
 
@@ -54,6 +78,7 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
 
   // Check if both are loop-invariant; if so, the instruction itself can be considered loop-invariant
   if (isLoopInvOp(op1, linvInstr, L) && isLoopInvOp(op2, linvInstr, L)) {
+    D("\tBoth operands are linv -> label as linv")
     return true;
   }
 
@@ -73,6 +98,7 @@ void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
       // Check for loop invariance applies only to BinaryOp instructions
       if (I.isBinaryOp() && isLoopInvInstr(I, linvInstr, L)) {
         D("\t^ IS LOOP INVARIANT OP ^");
+        linvInstr.push_back(&I);
       }
     }
   }
