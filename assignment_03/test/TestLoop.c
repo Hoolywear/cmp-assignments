@@ -7,11 +7,11 @@ int foo() {
         
     }
 
-    int caca = 200;
-    int pupu = caca + 1;
+    int x = 200;
+    int y = x + 1;
 
-    if ( pupu > 2 )
-        return caca;
+    if ( y > 2 )
+        return x;
 
-    return pupu;
+    return y;
 }
