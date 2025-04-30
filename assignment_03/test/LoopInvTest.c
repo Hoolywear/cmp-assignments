@@ -1,13 +1,10 @@
 
 
-void foo(){
-
-    int a = 10;
-    int b = 20;
+void foo(int a, int b, int c){
 
     for ( int i = 0; i<5; i++ ){
         if ( i == 3 ){
-            int c = b + a;
+            a = b + c;
             int f = a + 2;
         }
         else {
