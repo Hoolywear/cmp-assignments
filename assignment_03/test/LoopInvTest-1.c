@@ -1,17 +1,17 @@
 
 
-void foo(int a, int b, int c){
 
-    for ( int i = 0; i<5; i++ ){
-        
-        if ( i == 3 ){
-            a = a + b;
-            b = b + b;
-            c = b + a;
+int foo(int a, int b, int c, int e, int d, int f, int k, int j) {
+    while ( a == 10 ) {
+        d = f + 1;  // si
+        k = b * c;  // si
+        if (e == 3) {
+            a = e + d;  // NO
+        } else if (f == 4) {
+            e = f + 3;  // si
+            return e;
         }
-        else {
-            int e = 3;
-        }
-        int d = a + 1;
     }
+    a = b + d;
+    return f;
 }
