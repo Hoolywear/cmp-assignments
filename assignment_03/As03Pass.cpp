@@ -130,7 +130,7 @@ bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
       BasicBlock *BBinst = inst->getParent();
 
       // if the BB of the use is not inside the loop anche it doesn't dominates the instruction BB, then return false
-      if ( !L.contains(BBinst) && !DT.dominates( defBlock, BBinst ) ){
+      if ( L.contains(BBinst) && !DT.dominates( defBlock, BBinst ) ){
         D( "Deleting " << *I << " because it does not dominate all its uses \n" )
         return false;
         break;
@@ -178,7 +178,17 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
   for (auto I: loopInvInstr)
     D(*I);
   #endif
+}
 
+void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
+  D("======\nCode Motion:\n======");
+
+  D("Instructions after code motion: \n");
+  #ifdef DEBUG
+  for (auto I: loopInvInstr)
+    D(*I);
+  #endif
+  
 }
 
 //-----------------------------------------------------------------------------
@@ -208,12 +218,11 @@ struct As03Pass: PassInfoMixin<As03Pass> {
       }
     #endif
 
-
-    // Instruction vectors to be reused for each loop
+    // instruction vectors to be reused for each loop
     vector<Instruction*> loopInvInstr;
     SmallVector<BasicBlock*> exitBBs;
 
-    // Iterate on all TOP-LEVEL loops from function
+    // iterate on all TOP-LEVEL loops from function
     for ( auto &L: LI ) {
       SmallVector<Loop*> nestVect = L->getLoopsInPreorder();
       for ( auto &NL: nestVect){
@@ -236,12 +245,10 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         // code motion candidates
         findCodeMotionCandidates(loopInvInstr, DT, exitBBs, *NL);
 
-
-
-
+        // code motion
+        // codeMotion(loopInvInstr, *NL);
 
         loopInvInstr.clear();
-        
       }
     }
 
