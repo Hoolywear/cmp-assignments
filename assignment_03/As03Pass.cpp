@@ -140,6 +140,26 @@ bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
   return true;
 }
 
+bool isAlreadyAssigned(Instruction *I, Loop &L){
+  Value *op1 = I->getOperand(0);
+  for ( Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI ) {
+    BasicBlock *B = *BI;
+    for(auto &inst: *B) {
+      if( &inst != I ) {
+        for( int i = 0; i < inst.getNumOperands(); i++ ) {
+          Value *op = inst.getOperand(i);
+          // check if the operand is the same as the one in I
+          if ( op == op1 ){
+            D("Deleting " << *I << " because it is already assigned to another instruction \n" )
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs, Loop &L){
 
   D("======\nCode Motion Candidates:\n======");
@@ -167,6 +187,9 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 
     if (!domAllUses(I, DT, L) && !dominatesAll ) {
       D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks");
+      loopInvInstr.erase(it);
+    } else if(isAlreadyAssigned(I, L)) {
+      D("Erasing " << *I << " from loopInvInstr because it is already assigned to another instruction");
       loopInvInstr.erase(it);
     } else { // increase the iterator only if element not deleted
       ++it;
