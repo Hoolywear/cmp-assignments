@@ -39,7 +39,9 @@ using namespace std;
 
 bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L);
 
-// Function that checks wether an operand from a BinaryOp is considered loop-invariant
+/*
+* Function that checks wether an operand from a BinaryOp is considered loop-invariant
+*/
 bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
   D("\t\tEntered isLoopInvOp for " << *OP);
 
@@ -74,7 +76,9 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
   return false;
 }
 
-// Function that checks wether a BinaryOp from a loop is considered loop-invariant
+/*
+* Function that checks wether a BinaryOp from a loop is considered loop-invariant
+*/
 bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
   // Retrieve operands
   Value *op1 = I.getOperand(0);
@@ -93,7 +97,9 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
   return false;
 }
 
-// Function to retrieve loop-invariant instructions from a specific loop
+/*
+* Function to retrieve loop-invariant instructions from a specific loop
+*/
 void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
   // TODO implement logic to iterate over nested loops
 
@@ -114,9 +120,8 @@ void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
   return;
 }
 
-
 /*
- * get the basic blocks for the uses of I and check if I dominates then all 
+ * function that gets the basic blocks for the uses of I and check if I dominates then all 
  */
 bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
   // get the BB of the instruction
@@ -140,11 +145,18 @@ bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
   return true;
 }
 
+/*
+* function that checks if the instruction is already assigned to another instruction in the loop
+*/
 bool isAlreadyAssigned(Instruction *I, Loop &L){
+  // get the destination of the instruction
   Value *op1 = I->getOperand(0);
+  // iterate over the blocks of the loop
   for ( Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI ) {
     BasicBlock *B = *BI;
+    // iterate over the instructions of the block
     for(auto &inst: *B) {
+      // if the instruction is not the same as I then check if it is assigned to the same operand
       if( &inst != I ) {
         for( int i = 0; i < inst.getNumOperands(); i++ ) {
           Value *op = inst.getOperand(i);
@@ -160,6 +172,9 @@ bool isAlreadyAssigned(Instruction *I, Loop &L){
   return false;
 }
 
+/*
+* function that finds the code motion candidates
+*/
 void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs, Loop &L){
 
   D("======\nCode Motion Candidates:\n======");
@@ -203,6 +218,9 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
   #endif
 }
 
+/*
+* function that performs the code motion
+*/
 void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
   D("======\nCode Motion:\n======");
 
