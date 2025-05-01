@@ -1,11 +1,7 @@
 
 
-void foo(){
+void foo(int a, int b, int c){
 
-    int a = 100; 
-    int b = 200;
-    int c = 300;
-    
     for ( int i = 0; i<5; i++ ){
         
         if ( i == 3 ){

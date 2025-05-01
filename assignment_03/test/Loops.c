@@ -11,7 +11,6 @@ int loop(int a, int b, int c, int e, int f, int g) {
             
             f = e + b;
             a =  j + 2;
-            f = a + e ;
             g = e + f;
             
         }
