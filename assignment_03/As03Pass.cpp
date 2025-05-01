@@ -95,7 +95,7 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
 
 // Function to retrieve loop-invariant instructions from a specific loop
 void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
-  // TODO: implement logic to iterate over nested loops
+  // TODO implement logic to iterate over nested loops
 
   // Iterate over loop instructions (via its BBs first)
   for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI) {
@@ -114,7 +114,70 @@ void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
   return;
 }
 
-void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBB){
+
+/*
+ * get the basic blocks for the uses of I and check if I dominates then all 
+ */
+bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
+  // get the BB of the instruction
+  BasicBlock *defBlock = I->getParent();
+
+  // For all the uses of the instruction
+  for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
+    User *user = useIt->getUser();
+    if (Instruction *inst = dyn_cast<Instruction>(user)) {
+      // get the BB of the use
+      BasicBlock *BBinst = inst->getParent();
+
+      // if the BB of the use is not inside the loop anche it doesn't dominates the instruction BB, then return false
+      if ( !L.contains(BBinst) && !DT.dominates( defBlock, BBinst ) ){
+        D( "Deleting " << *I << " because it does not dominate all its uses \n" )
+        return false;
+        break;
+      }
+    }
+  }
+  return true;
+}
+
+void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs, Loop &L){
+
+  D("======\nCode Motion Candidates:\n======");
+
+  if ( exitBBs.size() == 0 ){
+    D(" Loop has no exit blocks -> deleting all instructions from loopInvInstr")
+    loopInvInstr.clear();
+  }
+
+  for (auto it = loopInvInstr.begin(); it != loopInvInstr.end();) {
+    // get instruction from the iterator
+    Instruction *I = *it;
+    bool dominatesAll = true;
+
+    // get the BB of the loop invariant instruction
+    BasicBlock *BBInst = I->getParent();
+
+    // check if the BB dominates the loop exit AND if the the BB dominates all blocks that use the variable
+    for (auto &exitBlock : exitBBs) {
+      if (!DT.dominates(BBInst, exitBlock)) {
+        dominatesAll = false;
+        break;
+      }
+    }
+
+    if (!domAllUses(I, DT, L) && !dominatesAll ) {
+      D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks");
+      loopInvInstr.erase(it);
+    } else { // increase the iterator only if element not deleted
+      ++it;
+    }
+  }
+
+  #ifdef DEBUG
+  D("Candidates after dominator checks: \n");
+  for (auto I: loopInvInstr)
+    D(*I);
+  #endif
 
 }
 
@@ -138,9 +201,17 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     // dominators
     DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
 
+    #ifdef DEBUG
+    D("======\nDominance tree in deep-first:\n======");
+      for (auto *DTN : depth_first(DT.getRootNode())) {
+        D(DTN);
+      }
+    #endif
+
+
     // Instruction vectors to be reused for each loop
     vector<Instruction*> loopInvInstr;
-    SmallVector<BasicBlock*> exitBB;
+    SmallVector<BasicBlock*> exitBBs;
 
     // Iterate on all TOP-LEVEL loops from function
     for ( auto &L: LI ) {
@@ -150,20 +221,22 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         // retrieve loop invariant instructions for current loop
         getLoopInvInstructions(loopInvInstr, *NL);
         #ifdef DEBUG
-        D("======\nLoop-independent instructions:\n======")
+        D("======\nLoop-independent instructions:\n======");
         for (auto I: loopInvInstr)
           D(*I);
         #endif
 
-        NL->getExitBlocks(exitBB);
+        NL->getExitBlocks(exitBBs);
         #ifdef DEBUG
-        D("======\nLoop EXIT BLOCKS:\n======")
-        for (auto E: exitBB)
+        D("======\nLoop EXIT BLOCKS:\n======");
+        for (auto E: exitBBs)
           D(*E);
         #endif
 
-        // code motion
-        findCodeMotionCandidates(loopInvInstr, DT, exitBB);
+        // code motion candidates
+        findCodeMotionCandidates(loopInvInstr, DT, exitBBs, *NL);
+
+
 
 
 
