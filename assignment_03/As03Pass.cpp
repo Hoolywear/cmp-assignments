@@ -173,6 +173,23 @@ bool isAlreadyAssigned(Instruction *I, Loop &L){
 }
 
 /*
+* function that checks if the variable is dead at the exit of the loop
+*/
+bool isVariableDeadAtExit(Value *var, BasicBlock *exitBlock) {
+  // iterate over the instructions of the exit block
+  for (auto &I : *exitBlock) {
+    // check if the instruction uses the variable
+    for (unsigned i = 0; i < I.getNumOperands(); ++i) {
+      if (I.getOperand(i) == var) {
+        return false;  // variable is used in the exit block
+      }
+    }
+  }
+  return true;  // variable is dead at the exit of the loop
+}
+
+
+/*
 * function that finds the code motion candidates
 */
 void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs, Loop &L){
@@ -194,7 +211,7 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 
     // check if the BB dominates the loop exit AND if the the BB dominates all blocks that use the variable
     for (auto &exitBlock : exitBBs) {
-      if (!DT.dominates(BBInst, exitBlock)) {
+      if (!isVariableDeadAtExit(I, exitBlock) && !DT.dominates(BBInst, exitBlock)) {
         dominatesAll = false;
         break;
       }
