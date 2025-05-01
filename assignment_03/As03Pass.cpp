@@ -42,13 +42,17 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L);
 bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
   D("\t\tEntered isLoopInvOp for " << *OP);
 
+
   if ( isa<ConstantInt>(OP) ) {
     D("\t\tOperand is constant -> labeling as linv");
+    return true;
+  }else if ( dyn_cast<Argument>(OP) ){
+    D("\t\tOperand is a function argument -> labeling as linv")
     return true;
   }
 
   // Cast from Value to Instruction to perform checks
-  if (dyn_cast<Instruction>(OP)) {
+  if (dyn_cast<Instruction>(OP)  ) {
     Instruction *OpInst = dyn_cast<Instruction>(OP);
 
     if ( find(linvInstr.begin(), linvInstr.end(), OpInst) != linvInstr.end() ) {
@@ -132,6 +136,7 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     // Iterate on all TOP-LEVEL loops from function
     for (auto &L: LI) {
       getLoopInvInstructions(loopInvInstr, *L);
+
 
       #ifdef DEBUG
       D("======\nLoop-independent instructions:\n======")
