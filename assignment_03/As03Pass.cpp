@@ -130,19 +130,27 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
 
+    // dominatori - da spostare dopo pre header
+    
     // Instruction vectors to be reused for each loop
     vector<Instruction*> loopInvInstr;
-    
+
     // Iterate on all TOP-LEVEL loops from function
-    for (auto &L: LI) {
-      getLoopInvInstructions(loopInvInstr, *L);
-
-
-      #ifdef DEBUG
-      D("======\nLoop-independent instructions:\n======")
-      for (auto I: loopInvInstr)
-        D(*I);
-      #endif
+    for ( auto &L: LI ) {
+      SmallVector<Loop*> nestVect = L->getLoopsInPreorder();
+      for ( auto &NL: nestVect){
+        D(*NL);
+        // retrieve loop invariant instructions for current loop
+        getLoopInvInstructions(loopInvInstr, *NL);
+        #ifdef DEBUG
+        D("======\nLoop-independent instructions:\n======")
+        for (auto I: loopInvInstr)
+          D(*I);
+        #endif   
+        // code motion
+        loopInvInstr.clear();
+        
+      }
     }
 
   	return PreservedAnalyses::all();
