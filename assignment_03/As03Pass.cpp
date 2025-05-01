@@ -22,6 +22,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Dominators.h"
 #include <iostream>
 #include <vector>
 
@@ -113,6 +114,10 @@ void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
   return;
 }
 
+void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBB){
+
+}
+
 //-----------------------------------------------------------------------------
 // TestPass implementation
 //-----------------------------------------------------------------------------
@@ -130,10 +135,12 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
 
-    // dominatori - da spostare dopo pre header
-    
+    // dominators
+    DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
+
     // Instruction vectors to be reused for each loop
     vector<Instruction*> loopInvInstr;
+    SmallVector<BasicBlock*> exitBB;
 
     // Iterate on all TOP-LEVEL loops from function
     for ( auto &L: LI ) {
@@ -146,8 +153,20 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         D("======\nLoop-independent instructions:\n======")
         for (auto I: loopInvInstr)
           D(*I);
-        #endif   
+        #endif
+
+        NL->getExitBlocks(exitBB);
+        #ifdef DEBUG
+        D("======\nLoop EXIT BLOCKS:\n======")
+        for (auto E: exitBB)
+          D(*E);
+        #endif
+
         // code motion
+        findCodeMotionCandidates(loopInvInstr, DT, exitBB);
+
+
+
         loopInvInstr.clear();
         
       }
