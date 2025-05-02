@@ -150,7 +150,13 @@ bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
 */
 bool isAlreadyAssigned(Instruction *I, Loop &L){
   // get the destination of the instruction
-  Value *op1 = I->getOperand(0);
+  Value *op1;
+  if(dyn_cast<Value>(I)){
+    op1 = dyn_cast<Value>(I);
+    D("source: " << *I);
+    D("destination: " << op1->getName());
+  }
+ 
   // iterate over the blocks of the loop
   for ( Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI ) {
     BasicBlock *B = *BI;
