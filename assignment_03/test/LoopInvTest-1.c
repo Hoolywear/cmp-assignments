@@ -1,15 +1,16 @@
+
+
 int foo(int a, int b, int c, int e, int d, int f, int k, int j) {
-    while ( a == 10 ) {
-        d = f / 1;  // si
-        k = b * c;  // si
+
+    while ( j == k ) {
+        a = 10 + j;
         if (e == 3) {
-            a = e + d;  // NO
+            d = 5 + b;
         } else if (f == 4) {
-            e = f - 3;  // si
-            return e;
+            d = j * a;
         }
-        d = b % c;  // si
+
     }
-    a = b + d;
+    b = a + d;
     return f;
 }
