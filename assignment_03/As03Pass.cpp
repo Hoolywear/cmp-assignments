@@ -130,48 +130,42 @@ bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
   // For all the uses of the instruction
   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
     User *user = useIt->getUser();
-    if (Instruction *inst = dyn_cast<Instruction>(user)) {
-      // get the BB of the use
-      BasicBlock *BBinst = inst->getParent();
 
-      // if the BB of the use is not inside the loop anche it doesn't dominates the instruction BB, then return false
-      if ( L.contains(BBinst) && !DT.dominates( defBlock, BBinst ) ){
-        D( "Deleting " << *I << " because it does not dominate all its uses \n" )
+    if (dyn_cast<Instruction>(user)) {
+      Instruction *inst = dyn_cast<Instruction>(user);
+      // get the BB of the use
+      BasicBlock *useBB = inst->getParent();
+
+      // if the BB of the use is not inside the loop and it doesn't dominates the instruction BB, then return false
+      if ( !DT.dominates( defBlock, useBB ) ) {
+        D( "Return false: " << *I <<  " does not dominate all its uses \n" );
         return false;
-        break;
-      }
+      } // CHECK REMOVED BEACAUSE THE SAME CHECK IS DONE IN THE isVarDeadAtExit FUNCTION
+      // else if ( !L.contains(BBinst) ){
+      //   D( "Return false: the BB of the use is not inside the loop -> deleting " << *BBinst );
+      //   return false;
+      //   }
     }
   }
   return true;
 }
 
 /*
-* function that checks if the instruction is already assigned to another instruction in the loop
+* function that checks if I has any use in PHI node
 */
-bool isAlreadyAssigned(Instruction *I, Loop &L){
-  // get the destination of the instruction
-  Value *op1;
-  if(dyn_cast<Value>(I)){
-    op1 = dyn_cast<Value>(I);
-    D("source: " << *I);
-    D("destination: " << op1->getName());
-  }
- 
-  // iterate over the blocks of the loop
-  for ( Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI ) {
-    BasicBlock *B = *BI;
-    // iterate over the instructions of the block
-    for(auto &inst: *B) {
-      // if the instruction is not the same as I then check if it is assigned to the same operand
-      if( &inst != I ) {
-        for( int i = 0; i < inst.getNumOperands(); i++ ) {
-          Value *op = inst.getOperand(i);
-          // check if the operand is the same as the one in I
-          if ( op == op1 ){
-            D("Deleting " << *I << " because it is already assigned to another instruction \n" )
-            return true;
-          }
-        }
+bool hasMultipleDef(Instruction *I, Loop &L){
+  // For all the uses of the instruction
+  for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
+    User *user = useIt->getUser();
+
+    if (dyn_cast<Instruction>(user)) {
+      Instruction *useInst = dyn_cast<Instruction>(user);
+    
+      D("USO di " << *I << ": " << *useInst);
+    
+      if ( isa<PHINode>(useInst) ){
+        D( "The use is a PHI node!" )
+        return true;
       }
     }
   }
@@ -179,19 +173,30 @@ bool isAlreadyAssigned(Instruction *I, Loop &L){
 }
 
 /*
-* function that checks if the variable is dead at the exit of the loop
+* A variable is dead at loop exits if:
+*   - not used outside the loop
+*   - the use is in a PHI node
 */
-bool isVariableDeadAtExit(Value *var, BasicBlock *exitBlock) {
-  // iterate over the instructions of the exit block
-  for (auto &I : *exitBlock) {
-    // check if the instruction uses the variable
-    for (unsigned i = 0; i < I.getNumOperands(); ++i) {
-      if (I.getOperand(i) == var) {
-        return false;  // variable is used in the exit block
+bool isVarDeadAtExit(Instruction *I, Loop &L) {
+
+  BasicBlock *useBB;
+
+  // For all the uses of the instruction
+  for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
+    User *user = useIt->getUser();
+
+    if (dyn_cast<Instruction>(user)) {
+      Instruction *useInst = dyn_cast<Instruction>(user);
+      D(" - USO di " << *I << ": " << *useInst);
+      useBB = useInst->getParent();
+
+      if ( !L.contains(useBB) ){
+        D("The use " << *useInst << " of " << *I << " is outside the loop");
+        return false;
       }
     }
   }
-  return true;  // variable is dead at the exit of the loop
+  return true;
 }
 
 
@@ -210,24 +215,30 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
   for (auto it = loopInvInstr.begin(); it != loopInvInstr.end();) {
     // get instruction from the iterator
     Instruction *I = *it;
-    bool dominatesAll = true;
+    bool domAllExitBBs = true;
 
     // get the BB of the loop invariant instruction
     BasicBlock *BBInst = I->getParent();
 
     // check if the BB dominates the loop exit AND if the the BB dominates all blocks that use the variable
     for (auto &exitBlock : exitBBs) {
-      if (!isVariableDeadAtExit(I, exitBlock) && !DT.dominates(BBInst, exitBlock)) {
-        dominatesAll = false;
+      if (!DT.dominates(BBInst, exitBlock)) {
+        domAllExitBBs = false;
         break;
       }
     }
 
-    if (!domAllUses(I, DT, L) && !dominatesAll ) {
+    if (!domAllUses(I, DT, L) ) {
+      D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all uses");
+      loopInvInstr.erase(it);
+    }else if ( !domAllExitBBs ){ 
       D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks");
       loopInvInstr.erase(it);
-    } else if(isAlreadyAssigned(I, L)) {
-      D("Erasing " << *I << " from loopInvInstr because it is already assigned to another instruction");
+    } else if ( isVarDeadAtExit(I, L) ){
+      D("Erasing " << *I << " from loopInvInstr beacuse is not dead at exit loop ( has uses outside ) ");
+      loopInvInstr.erase(it);
+    }  else if( hasMultipleDef(I, L) ) {  // not working properly
+      D("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
       loopInvInstr.erase(it);
     } else { // increase the iterator only if element not deleted
       ++it;
