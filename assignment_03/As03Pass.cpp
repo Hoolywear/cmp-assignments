@@ -137,14 +137,11 @@ bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
       BasicBlock *useBB = inst->getParent();
 
       // if the BB of the use is not inside the loop and it doesn't dominates the instruction BB, then return false
-      if ( !DT.dominates( defBlock, useBB ) ) {
-        D( "Return false: " << *I <<  " does not dominate all its uses \n" );
+      if ( L.contains(useBB) && !DT.dominates(defBlock, useBB) ) {
+        D( "Return false: " << *I <<  " does not dominate all its uses in the loop \n" );
+        D( "PROBLEMATIC USE: " << *inst )
         return false;
-      } // CHECK REMOVED BEACAUSE THE SAME CHECK IS DONE IN THE isVarDeadAtExit FUNCTION
-      // else if ( !L.contains(BBinst) ){
-      //   D( "Return false: the BB of the use is not inside the loop -> deleting " << *BBinst );
-      //   return false;
-      //   }
+      }
     }
   }
   return true;
@@ -172,45 +169,52 @@ bool hasMultipleDef(Instruction *I, Loop &L){
   return false;
 }
 
-/*
-* A variable is dead at loop exits if:
-*   - not used outside the loop
-*   - the use is in a PHI node
-*/
-bool isVarDeadAtExit(Instruction *I, Loop &L) {
+// /*
+// * function checks if variable dominates all exits where it is alive (used)
+// */
+// bool domExitsWhereAlive(Instruction *I, DominatorTree &DT, Loop &L,SmallVector<BasicBlock*> &exitBBs) {
 
-  BasicBlock *useBB;
+//   BasicBlock *useBB;
 
-  // For all the uses of the instruction
-  for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
-    User *user = useIt->getUser();
+//   // For all the uses of the instruction
+//   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
+//     User *user = useIt->getUser();
 
-    if (dyn_cast<Instruction>(user)) {
-      Instruction *useInst = dyn_cast<Instruction>(user);
-      D(" - USO di " << *I << ": " << *useInst);
-      useBB = useInst->getParent();
+//     if (dyn_cast<Instruction>(user)) {
+//       Instruction *useInst = dyn_cast<Instruction>(user);
+//       D(" - USO di " << *I << ": " << *useInst);
+//       useBB = useInst->getParent();
 
-      if ( !L.contains(useBB) ){
-        D("The use " << *useInst << " of " << *I << " is outside the loop");
-        return false;
-      }
-    }
-  }
-  return true;
-}
+//       if ( !L.contains(useBB) ){
+//         D("The use " << *useInst << " of " << *I << " is outside the loop");
+//         return false;
+//       }
+//     }
+//   }
+//   return true;
+// }
 
 
 /*
 * function that finds the code motion candidates
 */
-void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs, Loop &L){
+void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, Loop &L){
 
-  D("======\nCode Motion Candidates:\n======");
+  SmallVector<BasicBlock*> exitBBs; 
+  L.getExitBlocks(exitBBs);
+
+
 
   if ( exitBBs.size() == 0 ){
     D(" Loop has no exit blocks -> deleting all instructions from loopInvInstr")
     loopInvInstr.clear();
   }
+
+  #ifdef DEBUG
+  D("======\nLoop EXIT BLOCKS:\n======");
+  for (auto E: exitBBs)
+    D(*E);
+  #endif
 
   for (auto it = loopInvInstr.begin(); it != loopInvInstr.end();) {
     // get instruction from the iterator
@@ -222,23 +226,20 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 
     // check if the BB dominates the loop exit AND if the the BB dominates all blocks that use the variable
     for (auto &exitBlock : exitBBs) {
-      if (!DT.dominates(BBInst, exitBlock)) {
+      if (!DT.dominates(BBInst, exitBlock) ) {
         domAllExitBBs = false;
         break;
       }
     }
-
-    if (!domAllUses(I, DT, L) ) {
+    
+    if( hasMultipleDef(I, L) ) {  // not working properly
+      D("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
+      loopInvInstr.erase(it);
+    } else if (!domAllUses(I, DT, L) ) {
       D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all uses");
       loopInvInstr.erase(it);
-    }else if ( !domAllExitBBs ){ 
-      D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks");
-      loopInvInstr.erase(it);
-    } else if ( isVarDeadAtExit(I, L) ){
-      D("Erasing " << *I << " from loopInvInstr beacuse is not dead at exit loop ( has uses outside ) ");
-      loopInvInstr.erase(it);
-    }  else if( hasMultipleDef(I, L) ) {  // not working properly
-      D("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
+    } else if ( !domAllExitBBs /* || domExitsWhereAlive(I, DT, L, exitBBs) */ ) { 
+      D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks where is alive ");
       loopInvInstr.erase(it);
     } else { // increase the iterator only if element not deleted
       ++it;
@@ -295,7 +296,6 @@ struct As03Pass: PassInfoMixin<As03Pass> {
 
     // instruction vectors to be reused for each loop
     vector<Instruction*> loopInvInstr;
-    SmallVector<BasicBlock*> exitBBs;
 
     // iterate on all TOP-LEVEL loops from function
     for ( auto &L: LI ) {
@@ -305,20 +305,14 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         // retrieve loop invariant instructions for current loop
         getLoopInvInstructions(loopInvInstr, *NL);
         #ifdef DEBUG
-        D("======\nLoop-independent instructions:\n======");
+        D("======\nLoop-invariant instructions:\n======");
         for (auto I: loopInvInstr)
           D(*I);
         #endif
 
-        NL->getExitBlocks(exitBBs);
-        #ifdef DEBUG
-        D("======\nLoop EXIT BLOCKS:\n======");
-        for (auto E: exitBBs)
-          D(*E);
-        #endif
 
         // code motion candidates
-        findCodeMotionCandidates(loopInvInstr, DT, exitBBs, *NL);
+        findCodeMotionCandidates(loopInvInstr, DT, *NL);
 
         // code motion
         // codeMotion(loopInvInstr, *NL);
