@@ -1,17 +1,9 @@
-int foo() {
-
-    int a = 5;
-    int b = 0;
-    while ( a == 1 ) {
-        int c = a + b;
-        
-    }
-
-    int x = 200;
-    int y = x + 1;
-
-    if ( y > 2 )
-        return x;
-
-    return y;
+int foo(int x) {
+    int i = 0;
+    int n = 1000;
+    int a = 0;
+    do {
+        x = a + n;
+        i = i + 1;
+    } while(i<n);
 }
