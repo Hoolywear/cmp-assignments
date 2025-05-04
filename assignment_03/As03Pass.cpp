@@ -49,7 +49,7 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
   if ( isa<ConstantInt>(OP) ) {
     D("\t\tOperand is constant -> labeling as linv");
     return true;
-  }else if ( dyn_cast<Argument>(OP) ){
+  }else if ( isa<Argument>(OP) ){
     D("\t\tOperand is a function argument -> labeling as linv")
     return true;
   }
@@ -199,11 +199,8 @@ bool hasMultipleDef(Instruction *I, Loop &L){
 * function that finds the code motion candidates
 */
 void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, Loop &L){
-
   SmallVector<BasicBlock*> exitBBs; 
   L.getExitBlocks(exitBBs);
-
-
 
   if ( exitBBs.size() == 0 ){
     D(" Loop has no exit blocks -> deleting all instructions from loopInvInstr")
@@ -254,15 +251,65 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 }
 
 /*
+* function that checks if the instruction is movable in the preheader
+*/
+bool isMovable(Value *op, vector<Instruction*> &loopInvInstr) {
+  if(isa<ConstantInt>(op) || isa<Argument>(op) || find(loopInvInstr.begin(), loopInvInstr.end(), op) != loopInvInstr.end()) {
+    D("Instruction is a constant or already in the list of loop invariant instructions -> movable")
+    return true;
+  }
+  D("FALLBACK EXIT: Instruction " << *op << " is not movable");
+  return false;
+}
+
+/*
+* function that moves the instruction to the preheader block
+*/
+void Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB) {
+  Value *op1 = I->getOperand(0);
+  Value *op2 = I->getOperand(1);
+
+  if (!isMovable(op1, loopInvInstr)) {
+    Move(dyn_cast<Instruction>(op1), loopInvInstr, phBB);
+  }
+  
+  if(!isMovable(op2, loopInvInstr)) {
+    Move(dyn_cast<Instruction>(op2), loopInvInstr, phBB);
+  }
+
+  // Move the instruction to the preheader block
+  I->moveBefore(phBB->getTerminator());
+  D("Moved instruction " << *I << " to preheader block " << *phBB);
+}
+
+/*
 * function that performs the code motion
 */
 void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
   D("======\nCode Motion:\n======");
 
+  if(!L.getLoopPreheader()) {
+    D("No preheader for the loop -> cannot perform code motion")
+    return;
+  }else{
+    BasicBlock* phBB = L.getLoopPreheader();
+    D("Preheader found: " << *phBB); 
+    Instruction* lastMoved = phBB->getTerminator(); 
+    while(!loopInvInstr.empty()){
+      Instruction *I = loopInvInstr.front(); // get the last instruction in the vector
+      D("Moving instruction " << *I << " to preheader block " << *phBB);
+      Move(I, loopInvInstr, phBB); // move the instruction to the preheader block
+      loopInvInstr.erase(loopInvInstr.begin()); // remove from the list of loop invariant instructions
+    }
+  }
+
   D("Instructions after code motion: \n");
   #ifdef DEBUG
-  for (auto I: loopInvInstr)
-    D(*I);
+  for (auto BB: L) {
+    for (auto I: *BB) {
+      D(*I);
+    }
+  }
   #endif
   
 }
@@ -315,7 +362,7 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         findCodeMotionCandidates(loopInvInstr, DT, *NL);
 
         // code motion
-        // codeMotion(loopInvInstr, *NL);
+        codeMotion(loopInvInstr, *NL);
 
         loopInvInstr.clear();
       }
