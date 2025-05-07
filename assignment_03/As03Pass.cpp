@@ -387,6 +387,12 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         #endif
         // retrieve loop invariant instructions for current loop
         getLoopInvInstructions(loopInvInstr, *NL);
+
+        if (loopInvInstr.empty()) { // if there's no linv instructions
+          D1("\n******** No loop invariant instructions found; continue with next loop... ********\n")
+          continue;
+        }
+
         #ifdef DEBUG
         D1("======\nLoop-invariant instructions:\n======");
         for (auto I: loopInvInstr)
@@ -394,8 +400,15 @@ struct As03Pass: PassInfoMixin<As03Pass> {
         #endif
 
         D1("\n======\nPerforming candidate checks...\n")
+
         // code motion candidates
         findCodeMotionCandidates(loopInvInstr, DT, *NL);
+
+        if (loopInvInstr.empty()) { // if there's no instructions suitable for the code motion
+          D1("\n******** No candidate instructions for code motion found; continue with next loop... ********\n")
+          continue;
+        }
+
         #ifdef DEBUG
         D1("======\nCode motion candidates:\n======");
         for (auto I: loopInvInstr)
