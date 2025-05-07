@@ -131,29 +131,29 @@ void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
 /*
  * function that gets the basic blocks for the uses of I and check if I dominates then all 
  */
-bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
-  // get the BB of the instruction
-  BasicBlock *defBlock = I->getParent();
+// bool domAllUses( Instruction *I, DominatorTree &DT, Loop &L){
+//   // get the BB of the instruction
+//   BasicBlock *defBlock = I->getParent();
 
-  // For all the uses of the instruction
-  for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
-    User *use = useIt->getUser();
+//   // For all the uses of the instruction
+//   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
+//     User *use = useIt->getUser();
 
-    if (dyn_cast<Instruction>(use)) {
-      Instruction *useInst = dyn_cast<Instruction>(use);
-      // get the BB of the use
-      BasicBlock *useBB = useInst->getParent();
+//     if (dyn_cast<Instruction>(use)) {
+//       Instruction *useInst = dyn_cast<Instruction>(use);
+//       // get the BB of the use
+//       BasicBlock *useBB = useInst->getParent();
 
-      // if the BB of the use is not inside the loop and it doesn't dominate the instruction BB, then return false
-      if ( L.contains(useBB) && !DT.dominates(defBlock, useBB) ) {
-        D( "Return false: " << *I <<  " does not dominate all its uses in the loop \n" );
-        D( "PROBLEMATIC USE: " << *useInst )
-        return false;
-      }
-    }
-  }
-  return true;
-}
+//       // if the BB of the use is not inside the loop and it doesn't dominate the instruction BB, then return false
+//       if ( L.contains(useBB) && !DT.dominates(defBlock, useBB) ) {
+//         D( "Return false: " << *I <<  " does not dominate all its uses in the loop \n" );
+//         D( "PROBLEMATIC USE: " << *useInst )
+//         return false;
+//       }
+//     }
+//   }
+//   return true;
+// }
 
 /*
 * function that checks if I has any use in PHI node
@@ -243,9 +243,9 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
     if( hasMultipleDef(I, L) ) {
       D("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
       loopInvInstr.erase(it);
-    } else if (!domAllUses(I, DT, L) ) {
-      D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all uses");
-      loopInvInstr.erase(it);
+    // } else if (!domAllUses(I, DT, L) ) {
+    //   D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all uses");
+    //   loopInvInstr.erase(it);
     } else if ( !domsAllLivePaths(I, L, DT, exitBBs) ) { 
       D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks where is alive ");
       loopInvInstr.erase(it);
