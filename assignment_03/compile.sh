@@ -3,8 +3,9 @@
 opt_macos=false
 opt_linux=false
 
-while getopts f:o:ml opt; do
+while getopts rf:o:ml opt; do
     case $opt in
+        r) rm test/*.{ll,bc} && echo 'Test directory cleaned up' && exit 0 ;;
         f) COMPLETE_FILEPATH=$OPTARG ;;
         o) OPT_PASS=$OPTARG ;;
         m) opt_macos=true ;;
