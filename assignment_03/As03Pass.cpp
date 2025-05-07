@@ -177,7 +177,7 @@ bool hasMultipleDef(Instruction *I, Loop &L){
     
       // Check if PHI is inside the loop
       if ( L.contains(usePHI->getParent()) ){
-        D2( "\tFound a PHI node inside the loop, checking its arguments..." )
+        D2( "\tFound a PHI node inside the loop, checking its arguments... (" << *usePHI << " )" )
 
         // Iterate over PHI incoming BBs, and check if there's at least another one from inside the loop apart from I's
         for (auto itBB = usePHI->block_begin(); itBB != usePHI->block_end(); ++itBB) {
