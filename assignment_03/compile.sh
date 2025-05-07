@@ -40,6 +40,7 @@ if [ -f $COMPLETE_FILEPATH ]; then
     echo "Compiling source file $COMPLETE_FILEPATH" as "${COMPLETE_FILEPATH%.*}.ll"
     clang -S -emit-llvm -Xclang -disable-O0-optnone -O0 $COMPLETE_FILEPATH -o "${COMPLETE_FILEPATH%.*}".ll
     opt -p mem2reg "${COMPLETE_FILEPATH%.*}".ll -o "${COMPLETE_FILEPATH%.*}".bc
+    llvm-dis "${COMPLETE_FILEPATH%.*}".bc -o "${COMPLETE_FILEPATH%.*}"-mem2reg.ll
 else
     echo "File $COMPLETE_FILEPATH not found"
     exit 1
