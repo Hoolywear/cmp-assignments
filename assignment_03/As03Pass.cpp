@@ -376,6 +376,15 @@ struct As03Pass: PassInfoMixin<As03Pass> {
       SmallVector<Loop*> nestVect = L->getLoopsInPreorder();
       for ( auto &NL: nestVect){
         D1("############################\nCURRENTLY WORKING ON THE LEVEL " << NL->getLoopDepth() << " LOOP WITH HEADER BLOCK " << *NL->getHeader() << "\n############################");
+
+        #ifdef DEBUG
+        D2("======\nLoop blocks:\n======");
+        for (Loop::block_iterator BI = NL->block_begin(); BI != NL->block_end(); ++BI) {
+          BasicBlock *B = *BI;
+          D2(*B);
+        }
+        D2("======")
+        #endif
         // retrieve loop invariant instructions for current loop
         getLoopInvInstructions(loopInvInstr, *NL);
         #ifdef DEBUG
