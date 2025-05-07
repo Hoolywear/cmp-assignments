@@ -205,9 +205,9 @@ bool hasMultipleDef(Instruction *I, Loop &L){
 }
 
 // /*
-// * function checks if variable dominates all exits where it is alive (used)
+// * function checks if variable is dead outside the loop 
 // */
-bool isAliveOutsideLoop(Instruction *I, Loop &L, DominatorTree &DT, BasicBlock *exitBlock) {
+bool isDeadOutsideLoop(Instruction *I, Loop &L) {
   D2("\t\tChecking if definition is alive outside loop")
 
   BasicBlock *useBB;
@@ -216,33 +216,41 @@ bool isAliveOutsideLoop(Instruction *I, Loop &L, DominatorTree &DT, BasicBlock *
   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
     User *use = useIt->getUser();
     
-    if (dyn_cast<Instruction>(use)) {
+    // check if the use is outside the loop
+    if (isa<Instruction>(use)) {
       Instruction *useInst = dyn_cast<Instruction>(use);
-      useBB = useInst->getParent();
-      
-      if ( !L.contains(useBB) && DT.dominates(exitBlock, useBB) ){
-        D2("\tThe use " << *useInst << " of " << *I << " is outside the loop and alive in the current exit block");
+      if ( !L.contains(useInst) ){
+        D2("\tThe use " << *useInst << " of " << *I << " is outside the loop -> NOT DEAD");
         return false;
+      }
+      // if the use is a PHINode from inside, check for its uses outside the loop as well
+      else if (isa<PHINode>(useInst)) {
+        return isDeadOutsideLoop(useInst,L);
       }
     }
   }
   return true;
 }
 
+
 /*
-* function to check wether a code motion candidate instruction dominates all exit BBs after whose it's still alive
+* function to check wether a code motion candidate instruction dominates all exit BBs or, if it doesn't, if it's dead outside the loop
 */
 bool domsAllLivePaths(Instruction *I, Loop &L, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs) {
   D2("\tChecking if definition dominates all paths where is not dead")
   // get the BB of the loop invariant instruction
   BasicBlock *BBInst = I->getParent();
 
-  // check if the BB dominates the loop exit AND if the the BB dominates all blocks that use the variable
+  // check if the BB dominates all the loop exits
   for (auto &exitBlock : exitBBs) {
-    if ( !DT.dominates(BBInst, exitBlock) && !isAliveOutsideLoop(I,L,DT,exitBlock)) {
-      return false;
+    if ( !DT.dominates(BBInst, exitBlock) ) {
+      D2("The instruction does not dominate all loop exits, specifically:\n\t" << *exitBlock << "\n")
+      
+      // Additional check on variable liveness outside the loop
+      return isDeadOutsideLoop(I,L);
     }
   }
+
   D2("\t\tOK")
   return true;
 }
