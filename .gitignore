@@ -30,3 +30,7 @@ build/
 *.pdfsync
 *.rubbercache
 rubber.cache
+
+# VSCode workspace configurations
+
+.vscode/
