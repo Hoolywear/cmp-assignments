@@ -161,7 +161,8 @@ void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
 // }
 
 /*
-* function that checks if I has any use in PHI node
+* function that checks if I has any use in PHI nodes internal to the loop,
+* which means there are multiple definitions of the same variable
 */
 bool hasMultipleDef(Instruction *I, Loop &L){
   D2("\tChecking if definition has multiple definitions")
@@ -171,22 +172,28 @@ bool hasMultipleDef(Instruction *I, Loop &L){
     User *use = useIt->getUser();
     D3("\tChecking " << *I << "'s use " << *use)
 
-    // Do additional checks only if the use is a PHI node; otherwise, the use is already dominated (SSA property)
-    if (dyn_cast<PHINode>(use)) {
+    // Do additional checks only if the use is a PHINode
+    if (isa<PHINode>(use)) {
       PHINode *usePHI = dyn_cast<PHINode>(use);
     
       // Check if PHI is inside the loop
-      if ( L.contains(usePHI->getParent()) ){
+      if ( L.contains(usePHI) ){
         D2( "\tFound a PHI node inside the loop, checking its arguments... (" << *usePHI << " )" )
 
         // Iterate over PHI incoming BBs, and check if there's at least another one from inside the loop apart from I's
-        for (auto itBB = usePHI->block_begin(); itBB != usePHI->block_end(); ++itBB) {
-          BasicBlock *incomingBB = *itBB;
+        for (int i = 0; i < usePHI->getNumIncomingValues(); i++) {
+          BasicBlock *incomingBB = usePHI->getIncomingBlock(i);
+        
           D2("\tCurrent incoming BB: " << *incomingBB)
-          if ( I->getParent() != incomingBB && L.contains(incomingBB) ) {
+          if ( L.contains(incomingBB) && I != dyn_cast<Instruction>(usePHI->getIncomingValue(i))) {
             D2("\tThe variable has another definition from inside the loop!")
             return true;
           }
+          #ifdef DEBUG
+          else {
+            D2("\tThe incoming use is the same, or defined outside the loop")
+          }
+          #endif
         }
       }
     } else {
