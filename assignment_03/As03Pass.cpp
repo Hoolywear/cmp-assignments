@@ -163,14 +163,25 @@ bool hasMultipleDef(Instruction *I, Loop &L){
   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
     User *use = useIt->getUser();
 
-    if (dyn_cast<Instruction>(use)) {
-      Instruction *useInst = dyn_cast<Instruction>(use);
+    // Do additional checks only if the use is a PHI node; otherwise, the use is already dominated (SSA property)
+    if (dyn_cast<PHINode>(use)) {
+      PHINode *usePHI = dyn_cast<PHINode>(use);
     
-      if ( L.contains(useInst->getParent()) && isa<PHINode>(useInst) ){
-        D( "The use is a PHI node inside the loop!" )
-        return true;
+      // Check if PHI is inside the loop
+      if ( L.contains(usePHI->getParent()) ){
+        D( "The use is a PHI node inside the loop, checking its arguments..." )
+
+        // Iterate over PHI incoming BBs, and check if there's at least another one from inside the loop apart from I's
+        for (auto itBB = usePHI->block_begin(); itBB != usePHI->block_end(); ++itBB) {
+          BasicBlock *incomingBB = *itBB;
+          D("\tCurrent incoming BB: " << *incomingBB)
+          if ( I->getParent() != incomingBB && L.contains(incomingBB) ) {
+            D("\tThe variable has another definition from inside the loop!")
+            return true;
+          }
+        }
       }
-    }
+    } else D("Skipping use because not a PHI node")
   }
   return false;
 }
