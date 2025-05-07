@@ -41,12 +41,12 @@ using namespace std;
 * LOOP INVARIANCE FUNCTIONS
 */
 
-bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L);
+bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L);
 
 /*
 * Function that checks wether an operand from a BinaryOp is considered loop-invariant
 */
-bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
+bool isLoopInvOp(Value *OP, vector<Instruction*> &loopInvInstr, Loop &L) {
   D("\t\tEntered isLoopInvOp for " << *OP);
 
 
@@ -62,7 +62,7 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
   if (dyn_cast<Instruction>(OP)  ) {
     Instruction *OpInst = dyn_cast<Instruction>(OP);
 
-    if ( find(linvInstr.begin(), linvInstr.end(), OpInst) != linvInstr.end() ) {
+    if ( find(loopInvInstr.begin(), loopInvInstr.end(), OpInst) != loopInvInstr.end() ) {
       D("\t\tOperand already labeled as loop-invariant");
       return true;
     } else if (!L.contains(OpInst)) {
@@ -71,7 +71,7 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
     } else if (!OpInst->isBinaryOp()) { // If inside loop, not already linv, not constant, and not BinaryOp, then is not linv
       D("\t\tOperand defined inside the loop and not a BinaryOp -> not linv");
       return false;
-    } else if (isLoopInvInstr(*OpInst, linvInstr, L)) { // Cannot determine wether the operand is linv or not: recursive call to isLoopInvInstr(OPERATOR)
+    } else if (isLoopInvInstr(*OpInst, loopInvInstr, L)) { // Cannot determine wether the operand is linv or not: recursive call to isLoopInvInstr(OPERATOR)
       return true;
     }
   }
@@ -83,7 +83,7 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &linvInstr, Loop &L) {
 /*
 * Function that checks wether a BinaryOp from a loop is considered loop-invariant
 */
-bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
+bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L) {
   // Retrieve operands
   Value *op1 = I.getOperand(0);
   Value *op2 = I.getOperand(1);
@@ -93,7 +93,7 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
   D("\tOperand 2: " << *op2 );
 
   // Check if both are loop-invariant; if so, the instruction itself can be considered loop-invariant
-  if (isLoopInvOp(op1, linvInstr, L) && isLoopInvOp(op2, linvInstr, L)) {
+  if (isLoopInvOp(op1, loopInvInstr, L) && isLoopInvOp(op2, loopInvInstr, L)) {
     D("\tBoth operands are linv -> label as linv")
     return true;
   }
@@ -104,7 +104,7 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &linvInstr, Loop &L) {
 /*
 * Function to retrieve loop-invariant instructions from a specific loop
 */
-void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
+void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
   // TODO implement logic to iterate over nested loops
 
   // Iterate over loop instructions (via its BBs first)
@@ -114,9 +114,9 @@ void getLoopInvInstructions(vector<Instruction*> &linvInstr, Loop &L) {
     for (auto &I: *B) {
       D(I);
       // Check for loop invariance applies only to BinaryOp instructions
-      if (I.isBinaryOp() && isLoopInvInstr(I, linvInstr, L)) {
+      if (I.isBinaryOp() && isLoopInvInstr(I, loopInvInstr, L)) {
         D("\t^ IS LOOP INVARIANT OP ^");
-        linvInstr.push_back(&I);
+        loopInvInstr.push_back(&I);
       }
     }
   }
