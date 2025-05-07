@@ -29,12 +29,20 @@
 using namespace llvm;
 using namespace std;
 
-#define DEBUG
+#define DEBUG 2
 
-#ifdef DEBUG
-#define D(x) llvm::outs() << x << '\n';
-#else
-#define D(x)
+#if DEBUG == 1
+#define D1(x) llvm::outs() << x << '\n';
+#define D2(x)
+#define D3(x)
+#elif DEBUG == 2
+#define D1(x) llvm::outs() << x << '\n';
+#define D2(x) D1(x)
+#define D3(x)
+#elif DEBUG == 2
+#define D1(x) llvm::outs() << x << '\n';
+#define D2(x) D1(x)
+#define D3(x) D1(x)
 #endif
 
 /*
@@ -47,36 +55,34 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L)
 * Function that checks wether an operand from a BinaryOp is considered loop-invariant
 */
 bool isLoopInvOp(Value *OP, vector<Instruction*> &loopInvInstr, Loop &L) {
-  D("\t\tEntered isLoopInvOp for " << *OP);
-
 
   if ( isa<ConstantInt>(OP) ) {
-    D("\t\tOperand is constant -> labeling as linv");
+    D2("\t\tOperand is constant -> labeling as linv");
     return true;
   }else if ( isa<Argument>(OP) ){
-    D("\t\tOperand is a function argument -> labeling as linv")
+    D2("\t\tOperand is a function argument -> labeling as linv")
     return true;
   }
 
   // Cast from Value to Instruction to perform checks
-  if (dyn_cast<Instruction>(OP)  ) {
+  if ( dyn_cast<Instruction>(OP) ) {
     Instruction *OpInst = dyn_cast<Instruction>(OP);
 
     if ( find(loopInvInstr.begin(), loopInvInstr.end(), OpInst) != loopInvInstr.end() ) {
-      D("\t\tOperand already labeled as loop-invariant");
+      D2("\t\tOperand already labeled as loop-invariant");
       return true;
     } else if (!L.contains(OpInst)) {
-      D("\t\tOperand defined outside the loop -> labeling as linv");
+      D2("\t\tOperand defined outside the loop -> labeling as linv");
       return true;
     } else if (!OpInst->isBinaryOp()) { // If inside loop, not already linv, not constant, and not BinaryOp, then is not linv
-      D("\t\tOperand defined inside the loop and not a BinaryOp -> not linv");
+      D2("\t\tOperand defined inside the loop and not a BinaryOp -> not linv");
       return false;
     } else if (isLoopInvInstr(*OpInst, loopInvInstr, L)) { // Cannot determine wether the operand is linv or not: recursive call to isLoopInvInstr(OPERATOR)
       return true;
     }
   }
 
-  D("FALLBACK EXIT");
+  D2("OPERAND DID NOT PASS ANY TEST");
   return false;
 }
 
@@ -88,13 +94,13 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L)
   Value *op1 = I.getOperand(0);
   Value *op2 = I.getOperand(1);
 
-  D("\tBINARY OP:");
-  D("\tOperand 1: " << *op1 );
-  D("\tOperand 2: " << *op2 );
+  D2("\tBINARY OP:");
+  D2("\tOperand 1: " << *op1 );
+  D2("\tOperand 2: " << *op2 );
 
   // Check if both are loop-invariant; if so, the instruction itself can be considered loop-invariant
   if (isLoopInvOp(op1, loopInvInstr, L) && isLoopInvOp(op2, loopInvInstr, L)) {
-    D("\tBoth operands are linv -> label as linv")
+    D2("\tBoth operands are linv -> label as linv")
     return true;
   }
 
@@ -112,15 +118,14 @@ void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
     BasicBlock *B = *BI;
     // Iterate over BB instructions
     for (auto &I: *B) {
-      D(I);
+      D2(I);
       // Check for loop invariance applies only to BinaryOp instructions
       if (I.isBinaryOp() && isLoopInvInstr(I, loopInvInstr, L)) {
-        D("\t^ IS LOOP INVARIANT OP ^");
+        D2("\tIS LOOP INVARIANT OP");
         loopInvInstr.push_back(&I);
       }
     }
   }
-
   return;
 }
 
@@ -159,9 +164,12 @@ void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
 * function that checks if I has any use in PHI node
 */
 bool hasMultipleDef(Instruction *I, Loop &L){
+  D2("\tChecking if definition has multiple definitions")
+
   // For all the uses of the instruction
   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
     User *use = useIt->getUser();
+    D3("\tChecking " << *I << "'s use " << *use)
 
     // Do additional checks only if the use is a PHI node; otherwise, the use is already dominated (SSA property)
     if (dyn_cast<PHINode>(use)) {
@@ -169,20 +177,23 @@ bool hasMultipleDef(Instruction *I, Loop &L){
     
       // Check if PHI is inside the loop
       if ( L.contains(usePHI->getParent()) ){
-        D( "The use is a PHI node inside the loop, checking its arguments..." )
+        D2( "\tFound a PHI node inside the loop, checking its arguments..." )
 
         // Iterate over PHI incoming BBs, and check if there's at least another one from inside the loop apart from I's
         for (auto itBB = usePHI->block_begin(); itBB != usePHI->block_end(); ++itBB) {
           BasicBlock *incomingBB = *itBB;
-          D("\tCurrent incoming BB: " << *incomingBB)
+          D2("\tCurrent incoming BB: " << *incomingBB)
           if ( I->getParent() != incomingBB && L.contains(incomingBB) ) {
-            D("\tThe variable has another definition from inside the loop!")
+            D2("\tThe variable has another definition from inside the loop!")
             return true;
           }
         }
       }
-    } else D("Skipping use because not a PHI node")
+    } else {
+      D3("\tSkipping use because not a PHI node")
+    }
   }
+  D2("\t\tOK")
   return false;
 }
 
@@ -190,7 +201,8 @@ bool hasMultipleDef(Instruction *I, Loop &L){
 // * function checks if variable dominates all exits where it is alive (used)
 // */
 bool isAliveOutsideLoop(Instruction *I, Loop &L, DominatorTree &DT, BasicBlock *exitBlock) {
-  
+  D2("\t\tChecking if definition is alive outside loop")
+
   BasicBlock *useBB;
   
   // For all the uses of the instruction
@@ -202,7 +214,7 @@ bool isAliveOutsideLoop(Instruction *I, Loop &L, DominatorTree &DT, BasicBlock *
       useBB = useInst->getParent();
       
       if ( !L.contains(useBB) && DT.dominates(exitBlock, useBB) ){
-        D("The use " << *useInst << " of " << *I << " is outside the loop and alive in the current exit block");
+        D2("\tThe use " << *useInst << " of " << *I << " is outside the loop and alive in the current exit block");
         return false;
       }
     }
@@ -214,6 +226,7 @@ bool isAliveOutsideLoop(Instruction *I, Loop &L, DominatorTree &DT, BasicBlock *
 * function to check wether a code motion candidate instruction dominates all exit BBs after whose it's still alive
 */
 bool domsAllLivePaths(Instruction *I, Loop &L, DominatorTree &DT, SmallVector<BasicBlock*> &exitBBs) {
+  D2("\tChecking if definition dominates all paths where is not dead")
   // get the BB of the loop invariant instruction
   BasicBlock *BBInst = I->getParent();
 
@@ -223,7 +236,7 @@ bool domsAllLivePaths(Instruction *I, Loop &L, DominatorTree &DT, SmallVector<Ba
       return false;
     }
   }
-
+  D2("\t\tOK")
   return true;
 }
 
@@ -236,40 +249,37 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
   L.getExitBlocks(exitBBs);
   
   if ( exitBBs.size() == 0 ){
-    D(" Loop has no exit blocks -> deleting all instructions from loopInvInstr")
+    D1(" Loop has no exit blocks -> deleting all instructions from loopInvInstr")
     loopInvInstr.clear();
     return;
   }
 
   #ifdef DEBUG
-  D("======\nLoop EXIT BLOCKS:\n======");
+  D2("------\nLoop EXIT BLOCKS:\n------");
   for (auto E: exitBBs)
-    D(*E);
+    D2(*E);
+  D2("------")
   #endif
 
   for (auto it = loopInvInstr.begin(); it != loopInvInstr.end();) {
     // get instruction from the iterator
     Instruction *I = *it;
+    D2("Checking if " << *I << " is a candidate")
     
     if( hasMultipleDef(I, L) ) {
-      D("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
+      D1("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
       loopInvInstr.erase(it);
     // } else if (!domAllUses(I, DT, L) ) {
     //   D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all uses");
     //   loopInvInstr.erase(it);
     } else if ( !domsAllLivePaths(I, L, DT, exitBBs) ) { 
-      D("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks where is alive ");
+      D1("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks where is alive ");
       loopInvInstr.erase(it);
     } else { // increase the iterator only if element not deleted
+      D2("\t" << *I << " is a valid candidate for code motion")
       ++it;
     }
   }
-
-  #ifdef DEBUG
-  D("Candidates after dominator checks: \n");
-  for (auto I: loopInvInstr)
-    D(*I);
-  #endif
 }
 
 
@@ -282,10 +292,10 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 */
 bool isMovable(Value *op, vector<Instruction*> &loopInvInstr) {
   if(isa<ConstantInt>(op) || isa<Argument>(op) || find(loopInvInstr.begin(), loopInvInstr.end(), op) == loopInvInstr.end()) {
-    D("Instruction is a constant or not loop invariant -> movable")
+    D2("Operand " << *op << " is a constant or previously moved candidate")
     return true;
   }
-  D("FALLBACK EXIT: Operand " << *op << " has to be moved first");
+  D2("NOT MOVABLE: Operand " << *op << " is another candidate and has to be moved first!")
   return false;
 }
 
@@ -293,6 +303,7 @@ bool isMovable(Value *op, vector<Instruction*> &loopInvInstr) {
 * function that moves the instruction to the preheader block
 */
 void Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB) {
+  D2("Moving instruction " << *I << " to preheader block " << *phBB);
   Value *op1 = I->getOperand(0);
   Value *op2 = I->getOperand(1);
 
@@ -306,39 +317,28 @@ void Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB) 
 
   // Move the instruction to the preheader block
   I->moveBefore(phBB->getTerminator());
-  D("Moved instruction " << *I << " to preheader block " << *phBB);
+  D1("Moved instruction " << *I << " to preheader block " << *phBB);
 }
 
 /*
 * function that performs the code motion
 */
 void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
-  D("======\nCode Motion:\n======");
+  D1("======\nCode Motion:\n======");
 
   if (!L.getLoopPreheader()) { // even though we work on loops in normal form, we should keep this test if all previous ones fail
-    D("No preheader for the loop -> cannot perform code motion")
+    D1("No preheader for the loop -> cannot perform code motion!")
     return;
   } else {
     BasicBlock* phBB = L.getLoopPreheader();
-    D("Preheader found: " << *phBB); 
+    D2("Preheader found: " << *phBB); 
     Instruction* lastMoved = phBB->getTerminator(); 
     while(!loopInvInstr.empty()){
       Instruction *I = loopInvInstr.front(); // get the last instruction in the vector
-      D("Moving instruction " << *I << " to preheader block " << *phBB);
       Move(I, loopInvInstr, phBB); // move the instruction to the preheader block
       loopInvInstr.erase(loopInvInstr.begin()); // remove from the list of loop invariant instructions
     }
   }
-
-  D("Instructions after code motion: \n");
-  #ifdef DEBUG
-  for (auto BB: L) {
-    for (auto I: *BB) {
-      D(*I);
-    }
-  }
-  #endif
-  
 }
 
 //-----------------------------------------------------------------------------
@@ -362,9 +362,9 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
 
     #ifdef DEBUG
-    D("======\nDominance tree in deep-first:\n======");
+    D3("======\nDominance tree in deep-first:\n======");
       for (auto *DTN : depth_first(DT.getRootNode())) {
-        D(DTN);
+        D3(DTN);
       }
     #endif
 
@@ -375,18 +375,23 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     for ( auto &L: LI ) {
       SmallVector<Loop*> nestVect = L->getLoopsInPreorder();
       for ( auto &NL: nestVect){
-        D(*NL);
+        D1("############################\nCURRENTLY WORKING ON THE LEVEL " << NL->getLoopDepth() << " LOOP WITH HEADER BLOCK " << *NL->getHeader() << "\n############################");
         // retrieve loop invariant instructions for current loop
         getLoopInvInstructions(loopInvInstr, *NL);
         #ifdef DEBUG
-        D("======\nLoop-invariant instructions:\n======");
+        D1("======\nLoop-invariant instructions:\n======");
         for (auto I: loopInvInstr)
-          D(*I);
+          D1(*I);
         #endif
 
-
+        D1("\n======\nPerforming candidate checks...\n")
         // code motion candidates
         findCodeMotionCandidates(loopInvInstr, DT, *NL);
+        #ifdef DEBUG
+        D1("======\nCode motion candidates:\n======");
+        for (auto I: loopInvInstr)
+          D1(*I);
+        #endif
 
         // code motion
         codeMotion(loopInvInstr, *NL);
