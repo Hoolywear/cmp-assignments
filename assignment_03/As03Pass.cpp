@@ -309,12 +309,12 @@ bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, 
   Value *op1 = I->getOperand(0);
   Value *op2 = I->getOperand(1);
 
-  if (!isMovable(op1, loopInvInstr, L) || Move(dyn_cast<Instruction>(op1), loopInvInstr, phBB, L)) {
+  if (!isMovable(op1, loopInvInstr, L) && !Move(dyn_cast<Instruction>(op1), loopInvInstr, phBB, L)) {
     loopInvInstr.erase( itInst ); // remove from the list of loop invariant instructions
     return false;
   }
   
-  if(!isMovable(op2, loopInvInstr, L) || Move(dyn_cast<Instruction>(op2), loopInvInstr, phBB, L)) {
+  if(!isMovable(op2, loopInvInstr, L) && !Move(dyn_cast<Instruction>(op2), loopInvInstr, phBB, L)) {
     loopInvInstr.erase( itInst ); // remove from the list of loop invariant instructions
     return false;
   }
