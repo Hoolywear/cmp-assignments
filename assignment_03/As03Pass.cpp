@@ -31,7 +31,11 @@ using namespace std;
 
 #define DEBUG 3
 
-#if DEBUG == 1
+#if DEBUG == 0
+#define D1(x)
+#define D2(x)
+#define D3(x)
+#elif DEBUG == 1
 #define D1(x) llvm::outs() << x << '\n';
 #define D2(x)
 #define D3(x)
