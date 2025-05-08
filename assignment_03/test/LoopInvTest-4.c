@@ -1,6 +1,6 @@
 
 /*
-Sesto esempio: Caso con molti loop anidati.
+Sesto esempio: Caso con molti loop annidati.
 */
 int foo6(int i1, int i2, int i3, int i4) {
 while(1){
@@ -33,4 +33,5 @@ while(1){
 	}
 	i1--;
 }
+return 0;
 }
