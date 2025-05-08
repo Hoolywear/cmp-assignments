@@ -320,7 +320,10 @@ bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, 
   }
 
   // Move the instruction to the preheader block
-  I->moveBefore(phBB->getTerminator());
+  I->removeFromParent(); // remove from the current block
+  I->setName( I->getName() + "_moved" ); // rename the instruction to avoid name clashes
+  I->insertBefore(phBB->getTerminator()); // insert before the terminator of the preheader block
+  // I->moveBefore(phBB->getTerminator());
   D1("Moved instruction " << *I << " to preheader block " << *phBB);
   loopInvInstr.erase( itInst );
   return true;
