@@ -29,7 +29,7 @@
 using namespace llvm;
 using namespace std;
 
-#define DEBUG 2
+#define DEBUG 3
 
 #if DEBUG == 1
 #define D1(x) llvm::outs() << x << '\n';
@@ -39,7 +39,7 @@ using namespace std;
 #define D1(x) llvm::outs() << x << '\n';
 #define D2(x) D1(x)
 #define D3(x)
-#elif DEBUG == 2
+#elif DEBUG == 3
 #define D1(x) llvm::outs() << x << '\n';
 #define D2(x) D1(x)
 #define D3(x) D1(x)
@@ -162,11 +162,13 @@ bool hasMultipleDef(Instruction *I, Loop &L){
             D2("\tThe variable has another definition from inside the loop!")
             return true;
           }
+
           #ifdef DEBUG
           else {
             D2("\tThe incoming use is the same, or defined outside the loop")
           }
           #endif
+          
         }
       }
     } else {
@@ -202,6 +204,7 @@ bool isDeadOutsideLoop(Instruction *I, Loop &L) {
       }
     }
   }
+  D2( "\t\tOK" )
   return true;
 }
 
@@ -275,34 +278,49 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 /*
 * function that checks if the instruction is movable in the preheader
 */
-bool isMovable(Value *op, vector<Instruction*> &loopInvInstr) {
-  if(isa<ConstantInt>(op) || isa<Argument>(op) || find(loopInvInstr.begin(), loopInvInstr.end(), op) == loopInvInstr.end()) {
+bool isMovable(Value *op, vector<Instruction*> &loopInvInstr, Loop &L) {
+  if( isa<ConstantInt>(op) || isa<Argument>(op) || !L.contains( dyn_cast<Instruction>(op) ) ) {
     D2("Operand " << *op << " is a constant or previously moved candidate")
     return true;
   }
+
   D2("NOT MOVABLE: Operand " << *op << " is another candidate and has to be moved first!")
   return false;
+
 }
 
 /*
 * function that moves the instruction to the preheader block
 */
-void Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB) {
-  D2("Moving instruction " << *I << " to preheader block " << *phBB);
+bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, Loop &L) {
+  
+  auto itInst = find(loopInvInstr.begin(), loopInvInstr.end(), I);
+  
+  if ( itInst == loopInvInstr.end() ){
+    D3( " Tying to move an instruction that is not a candidate ")
+    return false;
+  }
+  
+  D2(" Move call for instruction " << *I << " to preheader block " << *phBB);
   Value *op1 = I->getOperand(0);
   Value *op2 = I->getOperand(1);
 
-  if (!isMovable(op1, loopInvInstr)) {
-    Move(dyn_cast<Instruction>(op1), loopInvInstr, phBB);
+  if (!isMovable(op1, loopInvInstr, L) || Move(dyn_cast<Instruction>(op1), loopInvInstr, phBB, L)) {
+    loopInvInstr.erase( itInst ); // remove from the list of loop invariant instructions
+    return false;
   }
   
-  if(!isMovable(op2, loopInvInstr)) {
-    Move(dyn_cast<Instruction>(op2), loopInvInstr, phBB);
+  if(!isMovable(op2, loopInvInstr, L) || Move(dyn_cast<Instruction>(op2), loopInvInstr, phBB, L)) {
+    loopInvInstr.erase( itInst ); // remove from the list of loop invariant instructions
+    return false;
   }
 
   // Move the instruction to the preheader block
   I->moveBefore(phBB->getTerminator());
   D1("Moved instruction " << *I << " to preheader block " << *phBB);
+  loopInvInstr.erase( itInst );
+  return true;
+
 }
 
 /*
@@ -320,8 +338,7 @@ void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
     Instruction* lastMoved = phBB->getTerminator(); 
     while(!loopInvInstr.empty()){
       Instruction *I = loopInvInstr.front(); // get the last instruction in the vector
-      Move(I, loopInvInstr, phBB); // move the instruction to the preheader block
-      loopInvInstr.erase(loopInvInstr.begin()); // remove from the list of loop invariant instructions
+      Move(I, loopInvInstr, phBB, L); // move the instruction to the preheader block
     }
   }
 }
