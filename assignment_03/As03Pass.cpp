@@ -280,15 +280,15 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 */
 
 /*
-* function that checks if the instruction is movable in the preheader
+* function that checks if an operand prevents the instruction from being moved
 */
 bool isMovable(Value *op, vector<Instruction*> &loopInvInstr, Loop &L) {
   if( isa<ConstantInt>(op) || isa<Argument>(op) || !L.contains( dyn_cast<Instruction>(op) ) ) {
-    D2("Operand " << *op << " is a constant or previously moved candidate")
+    D2("Operand " << *op << " is a constant, an argument or a previously moved candidate")
     return true;
   }
 
-  D2("NOT MOVABLE: Operand " << *op << " is another candidate and has to be moved first!")
+  D2("NOT MOVABLE: Operand " << *op << " might be another candidate which has to be moved first!")
   return false;
 
 }
@@ -301,7 +301,7 @@ bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, 
   auto itInst = find(loopInvInstr.begin(), loopInvInstr.end(), I);
   
   if ( itInst == loopInvInstr.end() ){
-    D3( " Tying to move an instruction that is not a candidate ")
+    D3( " Trying to move an instruction that is not a candidate ")
     return false;
   }
   
@@ -341,9 +341,12 @@ void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
     D2("Preheader found: " << *phBB); 
     Instruction* lastMoved = phBB->getTerminator(); 
     while(!loopInvInstr.empty()){
-      Instruction *I = loopInvInstr.front(); // get the last instruction in the vector
+      D3("Get current first instruction in the vector: " << *loopInvInstr.front() );
+      Instruction *I = loopInvInstr.front(); // get the first instruction in the vector
       Move(I, loopInvInstr, phBB, L); // move the instruction to the preheader block
+      D3("Moved instruction " << *I << " to preheader block after eventual recursive calls to Move()");
     }
+    D3("Moved all instructions to preheader block " << *phBB);
   }
 }
 
