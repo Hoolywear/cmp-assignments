@@ -3,11 +3,11 @@
 int foo(int a, int b, int c, int e, int d, int f, int k, int j) {
 
     while ( 1 )  {
-        a = 10 + j;
+        a = 10 + j; //movable
         if (e == 3) {
-            d = 5 + b;
+            d = 5 + b; //linv but not movable
         } else if (f == 4) {
-            d = j * a;
+            d = j * a; //linv but not movable
         }
 
         if ( j == f )
