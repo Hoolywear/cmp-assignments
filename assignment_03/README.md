@@ -4,7 +4,9 @@ L'obiettivo del passo è identificare le istruzioni all'interno di un loop che p
 Tali istruzioni possono quindi essere spostate all'esterno del ciclo senza alterare il comportamento del programma, migliorandone l'efficienza.
 
 Il codice implementa un *function pass* che analizza ogni loop all'interno della funzione, identifica le istruzioni loop-invariant e verifica se ciascuna di esse può essere spostata fuori dal ciclo senza alterare il comportamento del programma.
+
 Affinché un’istruzione sia considerata idonea per la LICM, deve soddisfare le seguenti condizioni:
+
 1. deve essere loop-invariant
 
 2. deve trovarsi in un blocco che domina tutte le uscite del loop, oppure la variabile da essa definita deve essere morta in tutte le uscite che non sono dominate
@@ -13,10 +15,11 @@ Affinché un’istruzione sia considerata idonea per la LICM, deve soddisfare le
 
 4. deve trovarsi in un blocco che domina tutti i blocchi del ciclo in cui viene utilizzata la variabile a cui assegna il valore
 
-Tali controlli vengono eseguiti nella funzione `findCodeMotionCandidates`.
+Tali controlli vengono eseguiti nella funzione `findCodeMotionCandidates`, che filtra il vettore di istruzioni loop-invariant, mantenendo solo quelle che soddisfano i controlli forniti dalle funzioni `domsAllLivePaths`, `hasMultipleDef`, e `dominatesAllUses`. Questo garantisce che siano sicure da spostare nel preheader del ciclo.
 
 ## Loop Invariant Instructions
 La ricerca delle istruzioni loop invariant avviene in modo ricorsivo tramite le seguenti funzioni:
+
 1. `getLoopInvInstructions`: è la funzione principale che analizza ciascun loop. Scorre tutte le istruzioni nei suoi Basic Blocks e, per ciascuna istruzione binaria (`BinaryOp`), verifica se è loop invariant tramite `isLoopInvInstr`. Se sì, la aggiunge al vettore *loopInvInstr*.
 
 2. `isLoopInvInstr`: prende una singola istruzione binaria e ne analizza i due operandi. Se entrambi sono loop invariant (verificato tramite `isLoopInvOp`), allora anche l’istruzione lo è.
@@ -33,12 +36,7 @@ La funziona popola progressivamente il vettore e termina quando sono state anali
 ## Domina tutte le uscite del loop oppure la variabile è dead all'uscita non dominata
 La funzione `domsAllLivePaths` verifica se un'istruzione candidata alla code motion si trova in un blocco che domina tutte le uscite del loop in cui la variabile da essa definita è ancora viva.
 
-Per ciascun exit block del loop:
-1. Se il blocco contenente l’istruzione non domina l'uscita,
-
-2. e la variabile è viva dopo quell’uscita (condizione verificata con `isDeadOutsideLoop`),
-
-allora la funzione restituisce *false*: ciò indica che la variabile potrebbe essere usata fuori dal loop su un percorso non dominato dall’istruzione, rendendo la code motion non sicura.
+Per ciascun exit block del loop, se il blocco contenente l’istruzione non domina l’uscita in cui la variabile è viva (condizione verificata con `isDeadOutsideLoop`), la funzione restituisce *false*. Questo indica che la variabile potrebbe essere utilizzata fuori dal loop lungo un percorso non dominato dall’istruzione, rendendo la code motion non sicura.
 
 La funzione `isDeadOutsideLoop` determina se una variabile definita da un’istruzione è morta al di fuori del loop, in relazione a un particolare exit block.
 
@@ -46,21 +44,22 @@ In particolare, per ciascun uso della variabile:
 
 1. Se l'uso è un'istruzione al di fuori del loop, allora la variabile è viva e restituisce *false*.
 
-2. Se l'uso è un *PHINode*, la funzione richiama se stessa ricorsivamente sul PHInode. Se questo ha usi esterni al loop, la variabile è considerata viva fuori dal ciclo.
+2. Se l'uso è un *PHINode*, la funzione richiama se stessa ricorsivamente sul PHInode. Se il *PHINode* ha usi esterni al loop, la variabile è considerata viva fuori dal ciclo.
 
-Se nessun uso esterno viene trovato, la funzione restituisce *true*, indicando che la variabile è morta al di fuori del loop.
+3. Se nessun uso esterno viene trovato, la funzione restituisce *true*, indicando che la variabile è morta al di fuori del loop.
 
 ## Ha definizioni multiple all'interno del loop
 La funzione `hasMultipleDef` controlla se una stessa variabile (ovvero il valore definito da un'istruzione `I`) viene ridefinita più volte all'interno del loop.
+
 In particolare la funzione, per ogni uso dell’istruzione `I` che è un `PHINode`:
 
 1. verifica se il blocco che contiene il `PHINode` si trova all'interno del loop;
 
-1. per ogni basic block che arriva al blocco del `PHINode`:
+2. per ogni basic block che arriva al blocco del `PHINode`:
     1. controlla che il blocco sia diverso da quello in cui è definita `I` (ossia il valore arrivi da un'altra definizione)
-    1. e che tale blocco sia anch'esso contenuto nel loop.
+    2. e che tale blocco sia anch'esso contenuto nel loop.
 
-Se entrambe le condizioni sono soddisfatte per almeno un blocco, la funzione restituisce `true`, in quanto significa che esistono più definizioni della variabile all’interno del loop.
+Se entrambe le condizioni sono soddisfatte per almeno un blocco, la funzione restituisce *true*, in quanto significa che esistono più definizioni della variabile all’interno del loop.
 
 ## Una istruzione domina tutti i suoi usi
 Il controllo che verifica se una istruzione domina tutti i suoi usi non è necessario nella forma SSA, in quando la proprietà è sempre verificata.
@@ -70,27 +69,26 @@ Lo spostamento delle istruzioni avviene solo dopo il superamento dei controlli d
 
 La funzione `codeMotion` verifica l'esistenza del pre-header (normalmente presente, poiché si considerano solo cicli in forma normale) e, finché il vettore delle istruzioni che hanno superato i controlli non è vuoto, invoca ripetutamente la funzione `Move`.
 
-La funzione `Move` sposta ricorsivamente un'istruzione loop invariant nel preheader del ciclo, garantendo che i suoi operandi siano già stati spostati.
+La funzione `Move` sposta ricorsivamente un'istruzione loop invariant nel preheader del ciclo, garantendo che i suoi operandi siano già stati spostati. 
 
-1. Verifica presenza nel vettore `loopInvInstr`: l'istruzione deve essere presente nel vettore (essere loop invariant).
+In sintesi, esegue i seguenti passi:
 
-2. Controllo ricorsivo degli operandi:
+1. controllo che l'istruzione sia presente nel vettore loopInvInstr, ovvero che sia già stata identificata come loop-invariant
 
-    1. per ogni operando, se non è "movibile" tenta di spostare l'istruzione corrispondente all'operando.
+2. controllo ricorsivo gli operandi:
 
-    2. se lo spostamento di un operando fallisce, l'istruzione corrente viene rimossa da `loopInvInstr` e non viene spostata.
+    1. per ogni operando, se non è "movibile" tenta di spostare l'istruzione corrispondente all'operando
 
-3. Spostamento effettivo:
+    2. se lo spostamento di un operando fallisce, l'istruzione corrente viene rimossa da `loopInvInstr` e non viene spostata
 
-    1. L'istruzione viene spostata nel pre-header
-
-    2. Rimossa da loopInvInstr dopo lo spostamento.
+3. spostamento effettivo: l'istruzione viene spostata nel pre-header e rimossa da loopInvInstr dopo lo spostamento.
 
 La funzione `isMovable` controlla se un operando può essere spostato e, in tal caso ritorna *true*.
-Un operando è 'muovibile' se:
+
+Un operando è considerato movibile se:
 
 1. è una costante
 
-2. è un argomento di una funziona
+2. è un argomento di una funzione
 
-3. non è dentro al loop (già spostato)
+3. non è dentro al loop (è già stato spostato)
