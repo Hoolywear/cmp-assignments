@@ -56,10 +56,11 @@ using namespace std;
 bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L);
 
 /*
-* Function that checks wether an operand from a BinaryOp is considered loop-invariant
+* function that checks wether an operand from a BinaryOp is considered loop-invariant
 */
 bool isLoopInvOp(Value *OP, vector<Instruction*> &loopInvInstr, Loop &L) {
 
+  // check if the operand is a constant or a function argument
   if ( isa<ConstantInt>(OP) ) {
     D2("\t\tOperand is constant -> labeling as linv");
     return true;
@@ -72,15 +73,19 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &loopInvInstr, Loop &L) {
   if ( dyn_cast<Instruction>(OP) ) {
     Instruction *OpInst = dyn_cast<Instruction>(OP);
 
+    // Check if the operand is already in the loop invariant instructions vector
     if ( find(loopInvInstr.begin(), loopInvInstr.end(), OpInst) != loopInvInstr.end() ) {
       D2("\t\tOperand already labeled as loop-invariant");
       return true;
+    // check if the operand is outside the loop 
     } else if (!L.contains(OpInst)) {
       D2("\t\tOperand defined outside the loop -> labeling as linv");
       return true;
+    // check if the operand is not a binary operation
     } else if (!OpInst->isBinaryOp()) { // If inside loop, not already linv, not constant, and not BinaryOp, then is not linv
       D2("\t\tOperand defined inside the loop and not a BinaryOp -> not linv");
       return false;
+    // check if the operand is loop invariant
     } else if (isLoopInvInstr(*OpInst, loopInvInstr, L)) { // Cannot determine wether the operand is linv or not: recursive call to isLoopInvInstr(OPERATOR)
       return true;
     }
@@ -91,7 +96,7 @@ bool isLoopInvOp(Value *OP, vector<Instruction*> &loopInvInstr, Loop &L) {
 }
 
 /*
-* Function that checks wether a BinaryOp from a loop is considered loop-invariant
+* function that checks wether a BinaryOp from a loop is considered loop-invariant
 */
 bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L) {
   // Retrieve operands
@@ -112,15 +117,13 @@ bool isLoopInvInstr(Instruction &I, vector<Instruction*> &loopInvInstr, Loop &L)
 }
 
 /*
-* Function to retrieve loop-invariant instructions from a specific loop
+* function to retrieve loop-invariant instructions from a specific loop
 */
 void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
-  // TODO implement logic to iterate over nested loops
-
-  // Iterate over loop instructions (via its BBs first)
+  // iteration over loop instructions (via its BBs first)
   for (Loop::block_iterator BI = L.block_begin(); BI != L.block_end(); ++BI) {
     BasicBlock *B = *BI;
-    // Iterate over BB instructions
+    // iteration over BB instructions
     for (auto &I: *B) {
       D2(I);
       // Check for loop invariance applies only to BinaryOp instructions
@@ -138,26 +141,26 @@ void getLoopInvInstructions(vector<Instruction*> &loopInvInstr, Loop &L) {
 */
 
 /*
-* function that checks if I has any use in PHI nodes internal to the loop,
+* function that checks if the instruction 'I' has any use in PHI nodes internal to the loop,
 * which means there are multiple definitions of the same variable
 */
 bool hasMultipleDef(Instruction *I, Loop &L){
   D2("\tChecking if definition has multiple definitions")
 
-  // For all the uses of the instruction
+  // iteration over all the uses of the instruction
   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
     User *use = useIt->getUser();
     D3("\tChecking " << *I << "'s use " << *use)
 
-    // Do additional checks only if the use is a PHINode
+    // check if the use is a PHI node to do more checks
     if (isa<PHINode>(use)) {
       PHINode *usePHI = dyn_cast<PHINode>(use);
     
-      // Check if PHI is inside the loop
+      // check if PHI is inside the loop
       if ( L.contains(usePHI) ){
         D2( "\tFound a PHI node inside the loop, checking its arguments... (" << *usePHI << " )" )
 
-        // Iterate over PHI incoming BBs, and check if there's at least another one from inside the loop apart from I's
+        // iteration over PHI incoming BBs, and check if there's at least another one from inside the loop apart from 'I'
         for (int i = 0; i < usePHI->getNumIncomingValues(); i++) {
           BasicBlock *incomingBB = usePHI->getIncomingBlock(i);
         
@@ -183,21 +186,22 @@ bool hasMultipleDef(Instruction *I, Loop &L){
   return false;
 }
 
-// /*
-// * function checks if variable is dead outside the loop 
-// */
+/*
+* function checks if variable is dead outside the loop 
+*/
 bool isDeadOutsideLoop(Instruction *I, Loop &L) {
   D2("\t\tChecking if definition is alive outside loop")
 
   BasicBlock *useBB;
   
-  // For all the uses of the instruction
+  // iteration over all the uses of the instruction
   for (auto useIt = I->use_begin(); useIt != I->use_end(); ++useIt) {
     User *use = useIt->getUser();
     
-    // check if the use is outside the loop
+    // check if the use is an instruction
     if (isa<Instruction>(use)) {
       Instruction *useInst = dyn_cast<Instruction>(use);
+      // check if the use is outside the loop
       if ( !L.contains(useInst) ){
         D2("\tThe use " << *useInst << " of " << *I << " is outside the loop -> NOT DEAD");
         return false;
@@ -212,7 +216,6 @@ bool isDeadOutsideLoop(Instruction *I, Loop &L) {
   return true;
 }
 
-
 /*
 * function to check wether a code motion candidate instruction dominates all exit BBs or, if it doesn't, if it's dead outside the loop
 */
@@ -226,7 +229,7 @@ bool domsAllLivePaths(Instruction *I, Loop &L, DominatorTree &DT, SmallVector<Ba
     if ( !DT.dominates(BBInst, exitBlock) ) {
       D2("The instruction does not dominate all loop exits, specifically:\n\t" << *exitBlock << "\n")
       
-      // Additional check on variable liveness outside the loop
+      // additional check on variable liveness outside the loop
       return isDeadOutsideLoop(I,L);
     }
   }
@@ -235,14 +238,14 @@ bool domsAllLivePaths(Instruction *I, Loop &L, DominatorTree &DT, SmallVector<Ba
   return true;
 }
 
-void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, Loop &L){
-
 /*
 * function that finds the code motion candidates
 */
+void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree &DT, Loop &L){
   SmallVector<BasicBlock*> exitBBs; 
   L.getExitBlocks(exitBBs);
   
+  // check if the loop has no exit blocks
   if ( exitBBs.size() == 0 ){
     D1(" Loop has no exit blocks -> deleting all instructions from loopInvInstr")
     loopInvInstr.clear();
@@ -256,14 +259,17 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
   D2("------")
   #endif
 
+  // iteration over the loop invariant instructions
   for (auto it = loopInvInstr.begin(); it != loopInvInstr.end();) {
     // get instruction from the iterator
     Instruction *I = *it;
     D2("Checking if " << *I << " is a candidate")
     
+    // check if the instruction has multiple definitions inside the loop
     if( hasMultipleDef(I, L) ) {
       D1("Erasing " << *I << " from loopInvInstr because has multiple definitions inside the loop ");
       loopInvInstr.erase(it);
+    // check if the instruction dominates all exit blocks  where is alive
     } else if ( !domsAllLivePaths(I, L, DT, exitBBs) ) { 
       D1("Erasing " << *I << " from loopInvInstr because it doesn't dominate all loop exit blocks where is alive ");
       loopInvInstr.erase(it);
@@ -274,7 +280,6 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
   }
 }
 
-
 /*
 * CODE MOTION FUNCTIONS
 */
@@ -283,6 +288,7 @@ void findCodeMotionCandidates(vector<Instruction*> &loopInvInstr, DominatorTree 
 * function that checks if an operand prevents the instruction from being moved
 */
 bool isMovable(Value *op, vector<Instruction*> &loopInvInstr, Loop &L) {
+  // check if the operand is a constant, a function argument or an instruction that is not in the loop
   if( isa<ConstantInt>(op) || isa<Argument>(op) || !L.contains( dyn_cast<Instruction>(op) ) ) {
     D2("Operand " << *op << " is a constant, an argument or a previously moved candidate")
     return true;
@@ -297,9 +303,9 @@ bool isMovable(Value *op, vector<Instruction*> &loopInvInstr, Loop &L) {
 * function that moves the instruction to the preheader block
 */
 bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, Loop &L) {
-  
   auto itInst = find(loopInvInstr.begin(), loopInvInstr.end(), I);
   
+  // chech if the instruction is in the list of loop invariant instructions
   if ( itInst == loopInvInstr.end() ){
     D3( " Trying to move an instruction that is not a candidate ")
     return false;
@@ -309,6 +315,7 @@ bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, 
   Value *op1 = I->getOperand(0);
   Value *op2 = I->getOperand(1);
 
+  // check if the operands are movable
   if (!isMovable(op1, loopInvInstr, L) && !Move(dyn_cast<Instruction>(op1), loopInvInstr, phBB, L)) {
     loopInvInstr.erase( itInst ); // remove from the list of loop invariant instructions
     return false;
@@ -320,8 +327,8 @@ bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, 
   }
 
   // Move the instruction to the preheader block
-  I->removeFromParent(); // remove from the current block
-  I->setName( I->getName() + "_moved" ); // rename the instruction to avoid name clashes
+  I->removeFromParent();                  // remove from the current block
+  I->setName( I->getName() + "_moved" );  // rename the instruction to avoid name conflicts
   I->insertBefore(phBB->getTerminator()); // insert before the terminator of the preheader block
   // I->moveBefore(phBB->getTerminator());
   D1("Moved instruction " << *I << " to preheader block " << *phBB);
@@ -336,17 +343,19 @@ bool Move(Instruction *I, vector<Instruction*> &loopInvInstr, BasicBlock *phBB, 
 void codeMotion(vector<Instruction*> &loopInvInstr, Loop &L) {
   D1("======\nCode Motion:\n======");
 
+  // check if the loop has a preheader
   if (!L.getLoopPreheader()) { // even though we work on loops in normal form, we should keep this test if all previous ones fail
     D1("No preheader for the loop -> cannot perform code motion!")
     return;
   } else {
-    BasicBlock* phBB = L.getLoopPreheader();
+    BasicBlock* phBB = L.getLoopPreheader();          // get the preheader block
     D2("Preheader found: " << *phBB); 
-    Instruction* lastMoved = phBB->getTerminator(); 
+    Instruction* lastMoved = phBB->getTerminator();   // get the last moved instruction in the preheader block
+    // while the vector of loop invariant instructions is not empty, we move the first instruction to the preheader block
     while(!loopInvInstr.empty()){
       D3("Get current first instruction in the vector: " << *loopInvInstr.front() );
-      Instruction *I = loopInvInstr.front(); // get the first instruction in the vector
-      Move(I, loopInvInstr, phBB, L); // move the instruction to the preheader block
+      Instruction *I = loopInvInstr.front();          // get the first instruction in the vector
+      Move(I, loopInvInstr, phBB, L);                 // move the instruction to the preheader block
       D3("Moved instruction " << *I << " to preheader block after eventual recursive calls to Move()");
     }
     D3("Moved all instructions to preheader block " << *phBB);
@@ -370,7 +379,7 @@ struct As03Pass: PassInfoMixin<As03Pass> {
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
 
-    // dominators
+    // dominator tree 
     DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
 
     #ifdef DEBUG
