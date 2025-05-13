@@ -24,6 +24,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Dominators.h"
 #include <iostream>
+#include <algorithm>
 #include <vector>
 
 using namespace llvm;
@@ -49,6 +50,80 @@ using namespace std;
 #define D3(x) D1(x)
 #endif
 
+/*
+* The function verify if there is ONE instructiona in the second loop preheader (which also is 
+* the exit block of the precedent loop) that has uses inside the second loop.
+* If the instruction is used return false, true otherwise.
+* Note: we have to check this condition beacuse if the instruction beetween the loop (outside)
+* is not used we can join loops even if are not "directly" adjacent.
+*/
+bool hasUsesInsideNextLoop(Loop &NextLoop){
+
+  BasicBlock *NextLoopPreHeader = NextLoop.getLoopPreheader();
+
+  for ( auto &I: *NextLoopPreHeader ){
+
+    D1( "\t Current instruction: " << I)
+
+    if ( !isa<BranchInst>(I) ){
+
+      for (auto useIt = I.use_begin(); useIt != I.use_end(); ++useIt) {
+        User *use = useIt->getUser();
+        Instruction *inst = dyn_cast<Instruction>(use);
+
+        D3("\tChecking " << I << "'s use: " << *inst )
+
+        if ( NextLoop.contains(inst) ){
+          D1("\t Instruction has use inside second loop")
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+
+
+bool adjacentLoops(Loop &l1, Loop &l2){
+
+  // get loop 1 exit block
+  BasicBlock *exitBBl1 = l1.getExitBlock();
+  // get loop 2 preheader block
+  BasicBlock *preHeaderBBl2 = l2.getLoopPreheader();
+
+
+  // guarded check
+  if ( l1.isGuarded() ){
+
+
+
+    D1( "\t Found guarde loop" )
+
+  } else {
+    // if more than one exit block on l1 return nullptr
+    if ( !exitBBl1 ){
+      D1("\t More than one exit block for the loop")
+      return false;
+    }
+
+    D1("\t Loop1 exit block: " << *exitBBl1 )
+    D1("\t Loop2 preheader block: " << *preHeaderBBl2)
+
+    if ( exitBBl1 != preHeaderBBl2 ){
+      return false;
+    } else if ( hasUsesInsideNextLoop(l2) ){
+      return false;
+    }
+  }
+  
+  D2( "\t Found adjacent loops! " )
+  return true;
+
+}
+
+
 
 //-----------------------------------------------------------------------------
 // TestPass implementation
@@ -66,10 +141,38 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
-
     // dominators
     DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
 
+    // small vector of loops
+    // SmallVector<Loop *> Worklist;
+
+    /*
+    * momentaneamente lavoriamo sui loop più esterni, bisogna verificare se ogni loop 
+    * contiene altri loop e nel caso eseguire anche per gli interni dove possibile
+    */
+
+    // reverse iterate over loops beacuse the first one is the last in the program 
+    for ( auto it = LI.rbegin() ; it != LI.rend()-1; ++it ){
+      Loop *loop1 = *it;
+      Loop *loop2 = *(it+1);
+
+      D1("Loop1 header: " << *loop1->getHeader());
+      D1("Loop2 header: " << *loop2->getHeader());
+
+
+
+      // First check: loop are adjacent
+      adjacentLoops(*loop1, *loop2);
+
+
+
+
+      // REMEMBER: move instructions with no uses inside the "second" loop to begin of exit BB of second loop 
+
+    
+    
+    }
 
 
   	return PreservedAnalyses::all();
