@@ -1,9 +1,15 @@
-int foo(int x) {
-    int i = 0;
-    int n = 1000;
-    int a = 0;
-    do {
-        x = a + n;
-        i = i + 1;
-    } while(i<n);
+int foo(int a, int b, int x) {
+    
+    while(x != 100){
+        x = b*2;
+    }
+
+    x = a *b;
+
+    while( a == 200){
+        int b = b * 10;
+    }
+    
+
+    return 0;
 }
