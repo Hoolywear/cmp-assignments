@@ -1,24 +1,17 @@
 int foo(int a, int b, int x, int n) {
 
-    // for (int i = 0; i < a; ++i) {
-    //     int f = 3 * a;
-    // }
+    for (int i = 0; i < a; ++i) {
+        int f = 3 * a;
+    }
+ 
+    // int l = x*n; // uncomment for not adjacent loops
 
-    // if (a == b) {
-        
-    //     while(x != 100){
-    //         x = b*2;
-    //     }
-    // }
+    while(x != 100){
+          x = b*2;
+    }
 
-    // x = a *b;
 
-    // while( a == 200){
-    //     int b = b * 10;
-    // }
-    
-
-    int i = 0;
+  int i = 0;
   if (n > 0) {
     do {
       // Loop body
@@ -26,11 +19,13 @@ int foo(int a, int b, int x, int n) {
     } while (i < n);
   }
 
-  while (x != 1) {
-    n = a * b;
+  int k = 99;
+  if (n > 0) {
+    do {
+      // Loop body
+      k += 1;
+    } while (k < n);
   }
-  while (x != 1) {
-    n = a * b;
-  }
+
     return 0;
 }
