@@ -34,3 +34,7 @@ rubber.cache
 # VSCode workspace configurations
 
 .vscode/
+
+# Image folder (to prevent repository bloating)
+
+images/
