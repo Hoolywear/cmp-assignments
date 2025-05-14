@@ -50,6 +50,16 @@ using namespace std;
 #define D3(x) D1(x)
 #endif
 
+BasicBlock *getGuardBlock(Loop &L) {
+  if ( L.isGuarded() ){
+    D2( "\tLoop is guarded" )
+    // retrieve guard branch
+    return L.getLoopGuardBranch()->getParent();
+  }
+  D2("\tLoop is not guarded")
+  return nullptr;
+}
+
 /*
 * The function verifies if there is AT LEAST ONE instruction in the second loop preheader (which is also 
 * the exit block of the precedent loop) that has uses inside the second loop.
@@ -177,8 +187,9 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
-    // dominators
+    // dominators and postdominators
     DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
+    PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
 
     // small vector of loops
     // SmallVector<Loop *> Worklist;
@@ -195,12 +206,23 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
       D1("Loop1 header: " << *loop1->getHeader());
       D1("Loop2 header: " << *loop2->getHeader());
+      D2("======================================================================================")
+      D2("IS L1 GUARDED: " << loop1->isGuarded())
+      D2("IS L2 GUARDED: " << loop2->isGuarded() << "\n")
+      D2("======================================================================================")
+      D2("IS L1 ROTATED: " << loop1->isRotatedForm())
+      D2("IS L2 ROTATED: " << loop2->isRotatedForm() << "\n")
+      
 
 
-
-      // First check: loop are adjacent
-      adjacentLoops(*loop1, *loop2);
-
+      // First check: loops are adjacent
+      if (!areAdjacentLoops(*loop1, *loop2)) {
+        D1("LOOPS ARE NOT ADJACENT - SKIPPING LOOP PAIR")
+        continue;
+      } else if (!areControlFlowEq(*loop1, *loop2, DT, PDT)) {
+        D1("LOOPS ARE NOT ADJACENT - SKIPPING LOOP PAIR")
+        continue;
+      }
 
 
 
