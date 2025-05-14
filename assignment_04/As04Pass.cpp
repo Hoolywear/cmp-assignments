@@ -23,6 +23,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/Analysis/PostDominators.h"
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -95,7 +96,10 @@ BasicBlock *getGuardBlock(Loop &L) {
 
 
 
-bool areAdjacentLoops(Loop &l1, Loop &l2){
+/*
+* The function checks if loops are both guarded or not and if there are statements between the loops
+*/
+bool areAdjacentLoops(Loop &l1, Loop &l2) {
 
   // Loops need to be both guarded or not
   BasicBlock *guard1 = getGuardBlock(l1);
@@ -104,69 +108,85 @@ bool areAdjacentLoops(Loop &l1, Loop &l2){
   if ((guard1 && !guard2) || (!guard1 && guard2)) {
     D2("Not both guarded or not guarded")
       return false;
+  }
+
+
+  // if both guarded
+  if ( guard1 && guard2 ){
+
+    D1( "\t Loops are both guarded" )
+
+    BranchInst *guardBranch = l1.getLoopGuardBranch();
+
+    // iterate on the two successor BBs and verify if the exit of the first loop
+    // is the guard BB of the secondo loop
+    for (auto S: guardBranch->successors()) {
+      if ( (l2.getLoopGuardBranch()->getParent()) == S ) {
+        D2("\t One of the successor of the first guard branch is the second loop guard BB " << *S)
+        
+        
+        for ( auto &I: *S ){
+          /*
+          * checks if there are instructions between loop.
+          * NOTE TO CHECK: we assume that a guarded form loop always has an if before the loop, so we check
+          * if there are instructions different from branches or compares
+          */
+          if ( !isa<BranchInst>(I)  && !isa<CmpInst>(I) ){
+            D2("\t => return false because guaded loops are not adjacent ")
+            return false;
+          }
+        }
+      }
+    }
+  } else { // if they are both not guarded
+
+    D1( "\t Both loops are not guarded " )
+    
+    // if more than one exit block on l1 return nullptr
+    if ( !l1.getExitBlock() ){
+      D1("\t More than one exit block for the loop ")
+      return false;
     }
 
+    // normal form loops (only case we consider) always have the preheader
+    if ( l1.getExitBlock() == l2.getLoopPreheader() ){
+
+      D2( " \t The exit block of the first loop is the preheader of the second loop " )
+
+      // check if there are no statements between loops (the first instruction is a branch)
+      if( !isa<BranchInst>(l1.getExitBlock()->begin()) ){
+      D2 ( " \t => return false beacuse loops are not adjacent " )
+        return false;
+      } 
+    }
+  }
   return true;
-
-
-  // // get loop 1 exit block
-  // BasicBlock *exitBBl1;
-  // // get loop 2 preheader block
-  // BasicBlock *preHeaderBBl2 = l2.getLoopPreheader();
-
-
-  // // guarded check
-  // if ( l1.isGuarded() ){
-  //   D1( "\tL1 is guarded!" )
-  //   // retrieve guard branch
-  //   BranchInst *guardBranch = l1.getLoopGuardBranch();
-
-  //   // iterate on the two successor BBs and find the one after L1 (not the preheader)
-  //   for (auto S: guardBranch->successors()) {
-  //     if (!(l1.getLoopPreheader() == S)) {
-  //       D2("\tFound guard successor after L1: " << *S)
-  //       exitBBl1 = S;
-  //       break;
-  //     }
-  //   }
-
-  // } else {
-  //   exitBBl1 = l1.getExitBlock();
-  //   // if more than one exit block on l1 return nullptr
-  //   if ( !exitBBl1 ){
-  //     D1("\tMore than one exit block for the loop")
-  //     return false;
-  //   }
-  // }
-
-  //   D1("\tLoop1 exit block: " << *exitBBl1 )
-  //   D1("\tLoop2 preheader block: " << *preHeaderBBl2)
-
-  //   if ( exitBBl1 != preHeaderBBl2 ){
-  //     return false;
-  //   } else if ( hasUsesInsideLoop(l2) ){
-  //     return false;
-  //   }
-  
-  // D2( "\tFound adjacent loops! " )
-  // return true;
-
 }
 
 
 /*
-* Function that checks if the two loops are control-flow equivalent (it is guaranteed that if
-* one loop executes, then the other one will execute as well) 
+* Function that checks if the two loops are control-flow equivalent.
+* - if the loops are both guarded we need to check if the l1 guard dominates l2 guard AND l2 gaurd postdominates l1 guard
+* - if the loops are bot not guarded we need to check if l1 preheader dominates l2 header AND if l2 preheader postdominates l1 header
 */
-
 bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &PDT) {
-  // D2("Domination condition header - header:" << DT.dominates(l1.getHeader(),l2.getHeader()))
-  // D2("PostDomination condition:" << PDT.dominates(l2.getHeader(),l1.getHeader()))
 
-  // return false;
+  if ( l1.isGuarded() && l2.isGuarded() ) {
+    if ( DT.dominates(getGuardBlock(l1), getGuardBlock(l2)) && PDT.dominates( getGuardBlock(l2), getGuardBlock(l1) ) ) {
+      D2( "\t Guarded loops are control flow equivalent " )
+      return true;
+    }
+  } else if ( !l1.isGuarded() && !l2.isGuarded() ) { 
+    
+    if ( DT.dominates(l1.getLoopPreheader(), l2.getLoopPreheader()) && PDT.dominates( l2.getLoopPreheader(), l1.getLoopPreheader() ) ) {
+      D2( "\t Guarded loops are control flow equivalent " )
+      return true;
+    } 
 
-  // D2( "\tFound control flow equivalent loops! " )
-  return true;
+  }
+
+
+  return false;
 }
 
 
@@ -213,22 +233,17 @@ struct As04Pass: PassInfoMixin<As04Pass> {
       D2("IS L1 ROTATED: " << loop1->isRotatedForm())
       D2("IS L2 ROTATED: " << loop2->isRotatedForm() << "\n")
       
-
-
       // First check: loops are adjacent
       if (!areAdjacentLoops(*loop1, *loop2)) {
-        D1("LOOPS ARE NOT ADJACENT - SKIPPING LOOP PAIR")
+        D1("LOOPS ARE NOT ADJACENT")
         continue;
-      } else if (!areControlFlowEq(*loop1, *loop2, DT, PDT)) {
-        D1("LOOPS ARE NOT ADJACENT - SKIPPING LOOP PAIR")
+      }
+      if (!areControlFlowEq(*loop1, *loop2, DT, PDT)) {
+        D1("LOOPS ARE NOT CONTROL FLOW EQUIVALENT")
         continue;
       }
 
-
-
-      // REMEMBER: move instructions with no uses inside the "second" loop to begin of exit BB of second loop 
-
-    
+      D1("Loops passed all checks!")
     
     }
 
