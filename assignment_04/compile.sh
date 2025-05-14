@@ -3,13 +3,15 @@
 opt_macos=false
 opt_linux=false
 
-while getopts rf:o:ml opt; do
+while getopts rRf:o:mli opt; do
     case $opt in
-        r) rm test/*.{ll,bc} && echo 'Test directory cleaned up' && exit 0 ;;
+        r) rm test/*.{ll,bc} && echo 'Test directory cleaned up' ; exit 0 ;;
+        R) rm {images/*.png,test/*.{ll,bc}} && echo 'Image and test directory cleaned up' ; exit 0 ;;
         f) COMPLETE_FILEPATH=$OPTARG ;;
         o) OPT_PASS=$OPTARG ;;
         m) opt_macos=true ;;
         l) opt_linux=true ;;
+        i) make_images=true ;;
         *) echo 'error while parsing arguments' >&2
            exit 1
     esac
@@ -50,4 +52,15 @@ if [ -n $OPT_PASS ]; then
     echo "Optimizing ${COMPLETE_FILEPATH%.*}.bc as ${COMPLETE_FILEPATH%.*}-opt.ll with $OPT_PASS optimization"
     opt -load-pass-plugin $LIB_NAME -p $OPT_PASS "${COMPLETE_FILEPATH%.*}".bc -o "${COMPLETE_FILEPATH%.*}"-opt.bc
     llvm-dis "${COMPLETE_FILEPATH%.*}"-opt.bc -o "${COMPLETE_FILEPATH%.*}"-opt.ll
+fi
+
+if [ $make_images ]; then
+    if [ ! -d images ]; then
+        mkdir images && echo "Created images directory"
+    else
+        echo "Images directory already created"
+    fi
+    opt -p dot-cfg "${COMPLETE_FILEPATH%.*}".bc -disable-output
+    dot -T png -o "images/$(basename ${COMPLETE_FILEPATH%.*})".png ./.*.dot
+    rm ./.*.dot
 fi
