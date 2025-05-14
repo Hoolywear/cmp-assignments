@@ -51,38 +51,37 @@ using namespace std;
 #endif
 
 /*
-* The function verify if there is ONE instructiona in the second loop preheader (which also is 
+* The function verifies if there is AT LEAST ONE instruction in the second loop preheader (which is also 
 * the exit block of the precedent loop) that has uses inside the second loop.
-* If the instruction is used return false, true otherwise.
-* Note: we have to check this condition beacuse if the instruction beetween the loop (outside)
-* is not used we can join loops even if are not "directly" adjacent.
+* Note: we check this condition because if none of the instructions beetween the loop (outside)
+* are used we can join loops even if not "directly" adjacent (the instructions then have to be moved after the second loop).
 */
-bool hasUsesInsideNextLoop(Loop &NextLoop){
+// bool hasUsesInsideLoop(Loop &L){
 
-  BasicBlock *NextLoopPreHeader = NextLoop.getLoopPreheader();
+//   BasicBlock *preHeader = L.getLoopPreheader();
 
-  for ( auto &I: *NextLoopPreHeader ){
+//   for ( auto &I: *preHeader ){
 
-    D1( "\t Current instruction: " << I)
+//     D1( "\t Current instruction: " << I)
 
-    if ( !isa<BranchInst>(I) ){
+//     if ( !isa<BranchInst>(I) ){
 
-      for (auto useIt = I.use_begin(); useIt != I.use_end(); ++useIt) {
-        User *use = useIt->getUser();
-        Instruction *inst = dyn_cast<Instruction>(use);
+//       for (auto useIt = I.use_begin(); useIt != I.use_end(); ++useIt) {
+//         User *use = useIt->getUser();
+//         Instruction *inst = dyn_cast<Instruction>(use);
 
-        D3("\tChecking " << I << "'s use: " << *inst )
+//         D3("\tChecking " << I << "'s use: " << *inst )
 
-        if ( NextLoop.contains(inst) ){
-          D1("\t Instruction has use inside second loop")
-          return true;
-        }
-      }
-    }
-  }
+//         if ( L.contains(inst) ){
+//           D1("\t Instruction has use inside second loop")
+//           return true;
+//         }
+//       }
+//     }
+//   }
 
-  return false;
-}
+//   return false;
+// }
 
 
 
