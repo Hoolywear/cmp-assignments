@@ -35,6 +35,7 @@ rubber.cache
 
 .vscode/
 
-# Image folder (to prevent repository bloating)
+# Images and Graphviz files (to prevent repository bloating)
 
 images/
+*.dot
