@@ -85,41 +85,78 @@ using namespace std;
 
 
 
-bool adjacentLoops(Loop &l1, Loop &l2){
+bool areAdjacentLoops(Loop &l1, Loop &l2){
 
-  // get loop 1 exit block
-  BasicBlock *exitBBl1 = l1.getExitBlock();
-  // get loop 2 preheader block
-  BasicBlock *preHeaderBBl2 = l2.getLoopPreheader();
+  // Loops need to be both guarded or not
+  BasicBlock *guard1 = getGuardBlock(l1);
+  BasicBlock *guard2 = getGuardBlock(l2);
 
-
-  // guarded check
-  if ( l1.isGuarded() ){
-
-
-
-    D1( "\t Found guarde loop" )
-
-  } else {
-    // if more than one exit block on l1 return nullptr
-    if ( !exitBBl1 ){
-      D1("\t More than one exit block for the loop")
+  if ((guard1 && !guard2) || (!guard1 && guard2)) {
+    D2("Not both guarded or not guarded")
       return false;
     }
 
-    D1("\t Loop1 exit block: " << *exitBBl1 )
-    D1("\t Loop2 preheader block: " << *preHeaderBBl2)
-
-    if ( exitBBl1 != preHeaderBBl2 ){
-      return false;
-    } else if ( hasUsesInsideNextLoop(l2) ){
-      return false;
-    }
-  }
-  
-  D2( "\t Found adjacent loops! " )
   return true;
 
+
+  // // get loop 1 exit block
+  // BasicBlock *exitBBl1;
+  // // get loop 2 preheader block
+  // BasicBlock *preHeaderBBl2 = l2.getLoopPreheader();
+
+
+  // // guarded check
+  // if ( l1.isGuarded() ){
+  //   D1( "\tL1 is guarded!" )
+  //   // retrieve guard branch
+  //   BranchInst *guardBranch = l1.getLoopGuardBranch();
+
+  //   // iterate on the two successor BBs and find the one after L1 (not the preheader)
+  //   for (auto S: guardBranch->successors()) {
+  //     if (!(l1.getLoopPreheader() == S)) {
+  //       D2("\tFound guard successor after L1: " << *S)
+  //       exitBBl1 = S;
+  //       break;
+  //     }
+  //   }
+
+  // } else {
+  //   exitBBl1 = l1.getExitBlock();
+  //   // if more than one exit block on l1 return nullptr
+  //   if ( !exitBBl1 ){
+  //     D1("\tMore than one exit block for the loop")
+  //     return false;
+  //   }
+  // }
+
+  //   D1("\tLoop1 exit block: " << *exitBBl1 )
+  //   D1("\tLoop2 preheader block: " << *preHeaderBBl2)
+
+  //   if ( exitBBl1 != preHeaderBBl2 ){
+  //     return false;
+  //   } else if ( hasUsesInsideLoop(l2) ){
+  //     return false;
+  //   }
+  
+  // D2( "\tFound adjacent loops! " )
+  // return true;
+
+}
+
+
+/*
+* Function that checks if the two loops are control-flow equivalent (it is guaranteed that if
+* one loop executes, then the other one will execute as well) 
+*/
+
+bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &PDT) {
+  // D2("Domination condition header - header:" << DT.dominates(l1.getHeader(),l2.getHeader()))
+  // D2("PostDomination condition:" << PDT.dominates(l2.getHeader(),l1.getHeader()))
+
+  // return false;
+
+  // D2( "\tFound control flow equivalent loops! " )
+  return true;
 }
 
 
