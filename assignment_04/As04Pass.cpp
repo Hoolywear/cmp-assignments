@@ -105,6 +105,7 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
   BasicBlock *guard1 = getGuardBlock(l1);
   BasicBlock *guard2 = getGuardBlock(l2);
 
+  // if one loop is guarded and the other isn't return false
   if ((guard1 && !guard2) || (!guard1 && guard2)) {
     D2("Not both guarded or not guarded")
       return false;
@@ -115,6 +116,8 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
   if ( guard1 && guard2 ){
 
     D1( "\t Loops are both guarded" )
+    D2( "\t Guard block of the first loop" << *guard1 )
+    D2( "\t Guard block of the Second loop" << *guard2 )
 
     BranchInst *guardBranch = l1.getLoopGuardBranch();
 
@@ -157,7 +160,7 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
       if( !isa<BranchInst>(l1.getExitBlock()->begin()) ){
       D2 ( " \t => return false beacuse loops are not adjacent " )
         return false;
-      } 
+      }
     }
   }
   return true;
@@ -221,6 +224,7 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
     // reverse iterate over loops beacuse the first one is the last in the program 
     for ( auto it = LI.rbegin() ; it != LI.rend()-1; ++it ){
+      D1("--> ENTERING A LOOP ANALYSIS <--")
       Loop *loop1 = *it;
       Loop *loop2 = *(it+1);
 
@@ -242,15 +246,11 @@ struct As04Pass: PassInfoMixin<As04Pass> {
         D1("LOOPS ARE NOT CONTROL FLOW EQUIVALENT")
         continue;
       }
-
       D1("Loops passed all checks!")
-    
     }
-
 
   	return PreservedAnalyses::all();
 }
-
 
   // Without isRequired returning true, this pass will be skipped for functions
   // decorated with the optnone LLVM attribute. Note that clang -O0 decorates
