@@ -103,7 +103,7 @@ BasicBlock *getGuardBlock(Loop &L) {
 // }
 
 /*
-* The function checks if the guard blocks of the guarded loops have identical condition
+* The function checks if the guard blocks of the guarded loops have identical conditions
 */
 bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
   // get compare from branch instruction
