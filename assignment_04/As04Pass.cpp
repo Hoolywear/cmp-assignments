@@ -51,9 +51,13 @@ using namespace std;
 #define D3(x) D1(x)
 #endif
 
+/*
+* Function that retrieves the guard BB from a loop, if present.
+*/
+
 BasicBlock *getGuardBlock(Loop &L) {
   if ( L.isGuarded() ){
-    D2( "\tLoop is guarded" )
+    D2( "\tLoop is guarded, retrieving its guard BB" )
     // retrieve guard branch
     return L.getLoopGuardBranch()->getParent();
   }
