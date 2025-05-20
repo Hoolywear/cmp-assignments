@@ -102,8 +102,8 @@ bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
   Instruction *compInst1 = dyn_cast<Instruction>(branch1->getCondition());
   Instruction *compInst2 = dyn_cast<Instruction>(branch2->getCondition());
 
-  D2( "\t\tbranch instruction 1: " << compInst1 )
-  D2( "\t\tbranch instruction 2: " << compInst2 )
+  D2( "\t\tbranch instruction 1: " << *compInst1 )
+  D2( "\t\tbranch instruction 2: " << *compInst2 )
 
   if ( !compInst1->isIdenticalTo(compInst2) ){
     return false;
