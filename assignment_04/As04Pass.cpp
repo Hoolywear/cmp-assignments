@@ -33,22 +33,26 @@ using namespace std;
 
 #define DEBUG 3
 
+#define D1_COLOR raw_ostream::WHITE
+#define D2_COLOR raw_ostream::BLUE
+#define D3_COLOR raw_ostream::RED
+
 #if DEBUG == 0
 #define D1(x)
 #define D2(x)
 #define D3(x)
 #elif DEBUG == 1
-#define D1(x) llvm::outs() << x << '\n';
+#define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
 #define D2(x)
 #define D3(x)
 #elif DEBUG == 2
-#define D1(x) llvm::outs() << x << '\n';
-#define D2(x) D1(x)
+#define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
+#define D2(x) llvm::outs().changeColor(D2_COLOR) << x << '\n'; outs().resetColor();
 #define D3(x)
 #elif DEBUG == 3
-#define D1(x) llvm::outs() << x << '\n';
-#define D2(x) D1(x)
-#define D3(x) D1(x)
+#define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
+#define D2(x) llvm::outs().changeColor(D2_COLOR) << x << '\n'; outs().resetColor();
+#define D3(x) llvm::outs().changeColor(D3_COLOR) << x << '\n'; outs().resetColor();
 #endif
 
 /*
@@ -57,11 +61,11 @@ using namespace std;
 
 BasicBlock *getGuardBlock(Loop &L) {
   if ( L.isGuarded() ){
-    D2( "\tLoop is guarded, retrieving its guard BB" )
+    D3( "\t(getGuardBlock) Loop is guarded, retrieving its guard BB" )
     // retrieve guard branch
     return L.getLoopGuardBranch()->getParent();
   }
-  D2("\tLoop is not guarded")
+  D3("\t(getGuardBlock) Loop is not guarded")
   return nullptr;
 }
 
@@ -106,12 +110,14 @@ bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
   Instruction *compInst1 = dyn_cast<Instruction>(branch1->getCondition());
   Instruction *compInst2 = dyn_cast<Instruction>(branch2->getCondition());
 
-  D2( "\t\tbranch instruction 1: " << *compInst1 )
-  D2( "\t\tbranch instruction 2: " << *compInst2 )
+  D3( "\t\tCompInst 1: " << *compInst1 )
+  D3( "\t\tCompInst 2: " << *compInst2 )
 
   if ( !compInst1->isIdenticalTo(compInst2) ){
+    D2( "\t(checkGuardCondition) Guarded loops don't have identical conditions " )
     return false;
   }
+  D2( "\t(checkGuardCondition) Guarded loops have identical conditions " )
   return true;
 }
 
@@ -202,13 +208,13 @@ bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &
 
   if ( l1.isGuarded() && l2.isGuarded() ) {
     if ( DT.dominates(getGuardBlock(l1), getGuardBlock(l2)) && PDT.dominates( getGuardBlock(l2), getGuardBlock(l1) ) ) {
-      D2( "\t Guarded loops are control flow equivalent " )
+      D2( "\tGuarded loops are control flow equivalent " )
       return true;
     }
   } else if ( !l1.isGuarded() && !l2.isGuarded() ) { 
     
     if ( DT.dominates(l1.getLoopPreheader(), l2.getLoopPreheader()) && PDT.dominates( l2.getLoopPreheader(), l1.getLoopPreheader() ) ) {
-      D2( "\t Guarded loops are control flow equivalent " )
+      D2( "\tLoops are control flow equivalent " )
       return true;
     } 
 
@@ -250,29 +256,29 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
     // reverse iterate over loops beacuse the first one is the last in the program 
     for ( auto it = LI.rbegin() ; it != LI.rend()-1; ++it ){
-      D1("--> ENTERING A LOOP ANALYSIS <--")
+      D1("--> ENTERING LOOP PAIR ANALYSIS <--")
       Loop *loop1 = *it;
       Loop *loop2 = *(it+1);
 
       D1("Loop1 header: " << *loop1->getHeader());
       D1("Loop2 header: " << *loop2->getHeader());
-      D2("======================================================================================")
-      D2("IS L1 GUARDED: " << loop1->isGuarded())
-      D2("IS L2 GUARDED: " << loop2->isGuarded() << "\n")
-      D2("======================================================================================")
-      D2("IS L1 ROTATED: " << loop1->isRotatedForm())
-      D2("IS L2 ROTATED: " << loop2->isRotatedForm() << "\n")
+      D2("┌───────┬────┬────┐")
+      D2("│\t│ L1 │ L2 │")
+      D2("├───────┼────┼────┤")
+      D2("│GUARDED│ " << loop1->isGuarded() << "  │ " << loop2->isGuarded() << "  │")
+      D2("│ROTATED│ " << loop1->isRotatedForm() << "  │ " << loop2->isRotatedForm() << "  │")
+      D2("└───────┴────┴────┘")
       
       // First check: loops are adjacent
       if (!areAdjacentLoops(*loop1, *loop2)) {
-        D1("LOOPS ARE NOT ADJACENT")
+        D1("LOOPS ARE NOT ADJACENT - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
         continue;
       }
       if (!areControlFlowEq(*loop1, *loop2, DT, PDT)) {
-        D1("LOOPS ARE NOT CONTROL FLOW EQUIVALENT")
+        D1("LOOPS ARE NOT CONTROL FLOW EQUIVALENT - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
         continue;
       }
-      D1("Loops passed all checks!")
+      D1("LOOPS PASSED ALL CHECKS - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
     }
 
   	return PreservedAnalyses::all();
