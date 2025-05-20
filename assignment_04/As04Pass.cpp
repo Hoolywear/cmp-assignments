@@ -94,6 +94,22 @@ BasicBlock *getGuardBlock(Loop &L) {
 //   return false;
 // }
 
+/*
+* The function checks if the guard blocks of the guarded loops have identical condition
+*/
+bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
+  // get compare from branch instruction
+  Instruction *compInst1 = dyn_cast<Instruction>(branch1->getCondition());
+  Instruction *compInst2 = dyn_cast<Instruction>(branch2->getCondition());
+
+  D2( "\t\tbranch instruction 1: " << compInst1 )
+  D2( "\t\tbranch instruction 2: " << compInst2 )
+
+  if ( !compInst1->isIdenticalTo(compInst2) ){
+    return false;
+  }
+  return true;
+}
 
 
 /*
@@ -111,13 +127,19 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
       return false;
   }
 
-
   // if both guarded
   if ( guard1 && guard2 ){
 
     D1( "\t Loops are both guarded" )
     D2( "\t Guard block of the first loop" << *guard1 )
     D2( "\t Guard block of the Second loop" << *guard2 )
+
+    // check if loop guard block have identical condition
+    if ( !checkGuardCondition(l1.getLoopGuardBranch(), l2.getLoopGuardBranch()) ){
+      D1( "\t Guarded loops don't have identical conditions " )
+      return false;
+    }
+    D1( "\t Guarded loops have identical conditions " )
 
     BranchInst *guardBranch = l1.getLoopGuardBranch();
 
