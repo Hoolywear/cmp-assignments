@@ -33,7 +33,7 @@ using namespace std;
 
 #define DEBUG 3
 
-#define D1_COLOR raw_ostream::WHITE
+#define D1_COLOR raw_ostream::BRIGHT_YELLOW
 #define D2_COLOR raw_ostream::BLUE
 #define D3_COLOR raw_ostream::RED
 
