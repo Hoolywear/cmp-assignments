@@ -1,6 +1,6 @@
 int foo(int a, int b, int x, int n) {
 
-    for (int i = 0; i < a; ++i) {
+    for (int i = 0; i < 5; ++i) {
         int f = 3 * a;
     }
  
@@ -19,7 +19,7 @@ int foo(int a, int b, int x, int n) {
     } while (i < n);
   }
 
-  int k = 99;
+  int k = 0;
   if (n > 0) {
     do {
       // Loop body

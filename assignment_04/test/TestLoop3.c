@@ -2,10 +2,10 @@ int foo(int a, int b, int x, int n) {
 
   int i = 0;
   if (n > 0) {
-    do {
+    while (i < n) {
       // Loop body
       i += 1;
-    } while (i < n);
+    };
   }
 
   // check if the instruction is in the guard block or in a previous BB
