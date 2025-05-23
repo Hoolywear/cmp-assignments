@@ -220,22 +220,55 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   return false;
 }
 
-
 /*
-* The function checks if the loops have negative distance dependencies
+* Function that returns load/store instructions of the loop
+* if isLoad is true return Load instructions, otherwise return store instructions
 */
-bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI){
+vector<Instruction*> getMemInst(Loop &l, bool isLoad){
+  vector<Instruction*> memInsts;
   // iterate over basic blocks of loops
-  for ( Loop::block_iterator BI = l2.block_begin(); BI != l2.block_end(); ++BI ) {
+  for ( Loop::block_iterator BI = l.block_begin(); BI != l.block_end(); ++BI ) {
     BasicBlock *B = *BI;
     // iterate over instructions in the basic block
     for ( auto &I: *B ){
       // check if the instruction is a load or a store
-      if ( isa<LoadInst>(I) || isa<StoreInst>(I) ){
-        D1("\t Found a memory access instruction: " << I );
+      if ( isLoad && isa<LoadInst>(I)){
+        D3("\t\t Found a load instruction: " << I );
+        memInsts.push_back(&I);
+      }else if( !isLoad && isa<StoreInst>(I)){
+        D3("\t\t Found a store instruction: " << I );
+        memInsts.push_back(&I);
       }
     }
   }
+  return memInsts;
+}
+
+/*
+* function that checks if the loops have negative distance dependencies
+*/
+bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolution &SE){
+
+  vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
+  vector<Instruction*> loadInsts2 = getMemInst(l2, true);  // get loads of loop2  
+
+  // iterate over the first loop memory instructions
+  for ( auto I1: storeInsts1 ) {
+    Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
+    Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
+    
+    D1(" \t Pointer operand 1: " << *getBasePtr1 );
+    for ( auto I2: loadInsts2 ) {
+      Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
+      Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
+      D1(" \t Pointer operand 2: " << *getBasePtr2 );
+    }
+  }
+
+  // vector<Instruction*> storeInsts2 = getMemInst(l2, false); // get stores of loop2
+  // vector<Instruction*> loasInsts1 = getMemInst(l1, true);  // get loads of loop1
+
+
   return false;
 }
 
@@ -303,7 +336,7 @@ struct As04Pass: PassInfoMixin<As04Pass> {
         continue;
       }
       // Forth check: there are no negative distance dependencies
-      else if (!haveNegativeDistance(*loop1, *loop2, DI)){
+      else if (!haveNegativeDistance(*loop1, *loop2, DI, SE)){
         D1("LOOPS HAVE NEGATIVE DISTANCE DEPENDENCIES\n=============================================")
         continue;
       }
