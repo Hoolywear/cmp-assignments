@@ -258,10 +258,27 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolutio
     Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
     
     D1(" \t Pointer operand 1: " << *getBasePtr1 );
+
     for ( auto I2: loadInsts2 ) {
       Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
       Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
       D1(" \t Pointer operand 2: " << *getBasePtr2 );
+
+      if ( getBasePtr1 != getBasePtr2 ){
+        D2( " \t Load and store working on different arrays " )
+        continue;
+      }
+      
+      const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr1, &l1));
+      const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr2, &l2));
+
+      D2( "\t SCEV 1: " << *SCEVl1->getStart() );
+      if ( SCEVl2 )
+        D2( "\t SCEV 2: " << *SCEVl2 );
+
+
+      // const SCEV *minusSCEV = SE.getMinusSCEV(SE.removePointerBase(SCEVl1), SE.removePointerBase(SCEVl2), SCEV::NoWrapMask);
+      // D2( "\t Minus SCEV: " << *minusSCEV );
     }
   }
 
