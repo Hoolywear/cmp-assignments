@@ -220,6 +220,27 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 }
 
 
+/*
+* The function checks if the loops have negative distance dependencies
+*/
+bool haveNegativeDistance(*loop1, *loop2, DependenceInfo &DI){
+
+  for ( Loop:block_iterator BI = l2 =.block_begin(); BI != l2.block_end(); ++BI ) {
+    BasicBlock *B = *BI;
+
+    for ( auto &I: B ){
+      // check if the instruction is a load or a store
+      if ( isa<LoadInst>(I) || isa<StoreInst>(I) ){
+
+        D1("\t Found a memory access instruction: " << I );
+        
+
+      }
+    }
+  }
+  return false;
+}
+
 //-----------------------------------------------------------------------------
 // TestPass implementation
 //-----------------------------------------------------------------------------
@@ -242,6 +263,8 @@ struct As04Pass: PassInfoMixin<As04Pass> {
     PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
     // Scalar Evolution Analysis
     ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+    // Dependence info obj
+    DependenceInfo &DI = AM.getResult<DependenceAnalysis>(F);
 
     // small vector of loops
     // SmallVector<Loop *> Worklist;
@@ -279,6 +302,11 @@ struct As04Pass: PassInfoMixin<As04Pass> {
       // Third check: loops iterate the same amount of times
       else if (!iterateEqualTimes(*loop1, *loop2, SE)) {
         D1("LOOPS DO NOT ITERATE THE SAME AMOUNT OF TIMES - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
+        continue;
+      }
+      // Forth check: there are no negative distance dependencies
+      else if (!haveNegativeDistance(*loop1, *loop2, DI)){
+        D1("LOOPS HAVE NEGATIVE DISTANCE DEPENDENCIES\n=============================================")
         continue;
       }
       D1("LOOPS PASSED ALL CHECKS - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
