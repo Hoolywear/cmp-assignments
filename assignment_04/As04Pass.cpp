@@ -25,6 +25,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/DependenceAnalysis.h"
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -223,18 +224,15 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 /*
 * The function checks if the loops have negative distance dependencies
 */
-bool haveNegativeDistance(*loop1, *loop2, DependenceInfo &DI){
-
-  for ( Loop:block_iterator BI = l2 =.block_begin(); BI != l2.block_end(); ++BI ) {
+bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI){
+  // iterate over basic blocks of loops
+  for ( Loop::block_iterator BI = l2.block_begin(); BI != l2.block_end(); ++BI ) {
     BasicBlock *B = *BI;
-
-    for ( auto &I: B ){
+    // iterate over instructions in the basic block
+    for ( auto &I: *B ){
       // check if the instruction is a load or a store
       if ( isa<LoadInst>(I) || isa<StoreInst>(I) ){
-
         D1("\t Found a memory access instruction: " << I );
-        
-
       }
     }
   }
