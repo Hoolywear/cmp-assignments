@@ -249,44 +249,74 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
 */
 bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolution &SE){
 
-  vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
-  vector<Instruction*> loadInsts2 = getMemInst(l2, true);  // get loads of loop2  
+  // vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
+  // vector<Instruction*> loadInsts2 = getMemInst(l2, true);  // get loads of loop2  
 
-  // iterate over the first loop memory instructions
-  for ( auto I1: storeInsts1 ) {
-    Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
-    Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
+  // // iterate over the first loop memory instructions
+  // for ( auto I1: storeInsts1 ) {
+  //   Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
+  //   Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
     
-    D1(" \t Pointer operand 1: " << *getBasePtr1 );
+  //   D1(" \t Pointer operand 1: " << *getBasePtr1 );
 
-    for ( auto I2: loadInsts2 ) {
-      Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
-      Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
-      D1(" \t Pointer operand 2: " << *getBasePtr2 );
+  //   for ( auto I2: loadInsts2 ) {
+  //     Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
+  //     Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
+  //     D1(" \t Pointer operand 2: " << *getBasePtr2 );
 
-      if ( getBasePtr1 != getBasePtr2 ){
-        D2( " \t Load and store working on different arrays " )
-        continue;
-      }
+  //     if ( getBasePtr1 != getBasePtr2 ){
+  //       D2( " \t Load and store working on different arrays " )
+  //       continue;
+  //     }
       
-      const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr1, &l1));
-      const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr2, &l2));
+  //     const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr1, &l1));
+  //     const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr2, &l2));
 
-      D2( "\t SCEV 1: " << *SCEVl1->getStart() );
-      if ( SCEVl2 )
-        D2( "\t SCEV 2: " << *SCEVl2 );
+  //     D2( "\t SCEV 1: " << *SCEVl1->getStart() );
+  //     if ( SCEVl2 )
+  //       D2( "\t SCEV 2: " << *SCEVl2 );
 
 
       // const SCEV *minusSCEV = SE.getMinusSCEV(SE.removePointerBase(SCEVl1), SE.removePointerBase(SCEVl2), SCEV::NoWrapMask);
       // D2( "\t Minus SCEV: " << *minusSCEV );
-    }
-  }
+    // }
+  // }
 
   // vector<Instruction*> storeInsts2 = getMemInst(l2, false); // get stores of loop2
   // vector<Instruction*> loasInsts1 = getMemInst(l1, true);  // get loads of loop1
 
 
   return false;
+}
+
+void fuseLevelNLoops(vector<Loop*> nLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
+  // Iterate over current level loops (in current loop nest)
+  bool fusion_happened = false;
+  do {
+    if (nLevelLoops.size() < 2) {
+      D1("Less than 2 loops in vector - aborting iteration")
+      break;
+    }
+    for ( auto it = nLevelLoops.end()-1 ; it != nLevelLoops.begin(); --it ) {
+      D1("--> ENTERING LOOP PAIR ANALYSIS <--")
+      Loop *loop1 = *it;
+      Loop *loop2 = *(it-1);
+
+      D1("Loop1 header: " << *loop1->getHeader());
+      D1("Loop2 header: " << *loop2->getHeader());
+      
+      // Checks
+      // if (!areAdjacentLoops(*loop1, *loop2) && !areControlFlowEq(*loop1, *loop2, DT, PDT) && !iterateEqualTimes(*loop1, *loop2, SE)) {
+      if (true) {  
+        D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+        fusion_happened = true;
+        nLevelLoops.erase( it-1 );
+        break;
+      }
+    }
+  } while (fusion_happened);
+  // Recursive calls on each next loop nest
+  
 }
 
 //-----------------------------------------------------------------------------
@@ -311,54 +341,34 @@ struct As04Pass: PassInfoMixin<As04Pass> {
     PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
     // Scalar Evolution Analysis
     ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
-    // Dependence info obj
-    DependenceInfo &DI = AM.getResult<DependenceAnalysis>(F);
 
     // small vector of loops
-    // SmallVector<Loop *> Worklist;
+    vector<Loop*> functionLoops = LI.getTopLevelLoops();
 
-    /*
-    * momentaneamente lavoriamo sui loop più esterni, bisogna verificare se ogni loop 
-    * contiene altri loop e nel caso eseguire anche per gli interni dove possibile
-    */
+    #ifdef DEBUG
+    D1("Print all loops from smallvector")
+    for ( auto L: functionLoops) {
+      D1( *L)
+    }
+    #endif
+
+    fuseLevelNLoops(functionLoops, DT, PDT, SE);
 
     // reverse iterate over loops beacuse the first one is the last in the program 
-    for ( auto it = LI.rbegin() ; it != LI.rend()-1; ++it ){
-      D1("--> ENTERING LOOP PAIR ANALYSIS <--")
-      Loop *loop1 = *it;
-      Loop *loop2 = *(it+1);
+    // for ( auto it = LI.rbegin() ; it != LI.rend()-1; ++it ){
+    //   D1("--> ENTERING LOOP PAIR ANALYSIS <--")
+    //   Loop *loop1 = *it;
+    //   Loop *loop2 = *(it+1);
 
-      D1("Loop1 header: " << *loop1->getHeader());
-      D1("Loop2 header: " << *loop2->getHeader());
-      D2("┌───────┬────┬────┐")
-      D2("│\t│ L1 │ L2 │")
-      D2("├───────┼────┼────┤")
-      D2("│GUARDED│ " << loop1->isGuarded() << "  │ " << loop2->isGuarded() << "  │")
-      D2("│ROTATED│ " << loop1->isRotatedForm() << "  │ " << loop2->isRotatedForm() << "  │")
-      D2("└───────┴────┴────┘")
+    //   D1("Loop1 header: " << *loop1->getHeader());
+    //   D1("Loop2 header: " << *loop2->getHeader());
       
-      // First check: loops are adjacent
-      if (!areAdjacentLoops(*loop1, *loop2)) {
-        D1("LOOPS ARE NOT ADJACENT - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
-        continue;
-      }
-      // Second check: loops are control flow equivalent
-      else if (!areControlFlowEq(*loop1, *loop2, DT, PDT)) {
-        D1("LOOPS ARE NOT CONTROL FLOW EQUIVALENT - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
-        continue;
-      }
-      // Third check: loops iterate the same amount of times
-      else if (!iterateEqualTimes(*loop1, *loop2, SE)) {
-        D1("LOOPS DO NOT ITERATE THE SAME AMOUNT OF TIMES - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
-        continue;
-      }
-      // Forth check: there are no negative distance dependencies
-      else if (!haveNegativeDistance(*loop1, *loop2, DI, SE)){
-        D1("LOOPS HAVE NEGATIVE DISTANCE DEPENDENCIES\n=============================================")
-        continue;
-      }
-      D1("LOOPS PASSED ALL CHECKS - CONTINUE WITH NEXT LOOP PAIR\n=============================================")
-    }
+    //   // Checks
+    //   if (!areAdjacentLoops(*loop1, *loop2) && !areControlFlowEq(*loop1, *loop2, DT, PDT) && !iterateEqualTimes(*loop1, *loop2, SE)) {
+        
+    //     continue;
+    //   }
+    // }
 
   	return PreservedAnalyses::all();
 }
