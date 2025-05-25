@@ -289,15 +289,22 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolutio
   return false;
 }
 
-void fuseLevelNLoops(vector<Loop*> nLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
+void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
+
+  vector<Loop*> loopsAfterFusion;
+
   // Iterate over current level loops (in current loop nest)
   bool fusion_happened = false;
   do {
-    if (nLevelLoops.size() < 2) {
+    if (currentLevelLoops.size() < 2) {
       D1("Less than 2 loops in vector - aborting iteration")
+      // push back if not already in the array
+        if ((currentLevelLoops.size() == 1) ) {
+          loopsAfterFusion.push_back(*currentLevelLoops.begin());
+        }
       break;
     }
-    for ( auto it = nLevelLoops.end()-1 ; it != nLevelLoops.begin(); --it ) {
+    for ( auto it = currentLevelLoops.end()-1 ; it != currentLevelLoops.begin(); --it ) {
       D1("--> ENTERING LOOP PAIR ANALYSIS <--")
       Loop *loop1 = *it;
       Loop *loop2 = *(it-1);
@@ -307,16 +314,33 @@ void fuseLevelNLoops(vector<Loop*> nLevelLoops, DominatorTree &DT, PostDominator
       
       // Checks
       // if (!areAdjacentLoops(*loop1, *loop2) && !areControlFlowEq(*loop1, *loop2, DT, PDT) && !iterateEqualTimes(*loop1, *loop2, SE)) {
-      if (true) {  
+      if (false) {  
         D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+        // fuse(loop1, loop2) function
         fusion_happened = true;
-        nLevelLoops.erase( it-1 );
+        currentLevelLoops.erase( it-1 );
+        // push back if not already in the array
+        if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
+          loopsAfterFusion.push_back(loop1);
+        }
         break;
+      } else {
+        D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
+        currentLevelLoops.erase(it);
+        // push back if not already in the array
+        if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
+          loopsAfterFusion.push_back(loop1);
+        }
       }
     }
   } while (fusion_happened);
   // Recursive calls on each next loop nest
   
+  for( auto L: loopsAfterFusion) {
+    vector<Loop*> subLoops = L->getSubLoopsVector();
+    D2("RECURSIVE CALL ON " << *L->getHeader() << " SUBLOOPS")
+    fuseLevelNLoops(subLoops, DT, PDT, SE);
+  }
 }
 
 //-----------------------------------------------------------------------------
