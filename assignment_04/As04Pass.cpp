@@ -115,10 +115,10 @@ bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
   D3( "\t\tCompInst 2: " << *compInst2 )
 
   if ( !compInst1->isIdenticalTo(compInst2) ){
-    D2( "\t(checkGuardCondition) Guarded loops don't have identical conditions " )
+    D3( "\t(checkGuardCondition) Guarded loops don't have identical conditions " )
     return false;
   }
-  D2( "\t(checkGuardCondition) Guarded loops have identical conditions " )
+  D3( "\t(checkGuardCondition) Guarded loops have identical conditions " )
   return true;
 }
 
@@ -127,6 +127,7 @@ bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
 * The function checks if loops are both guarded or not and if there are statements between the loops
 */
 bool areAdjacentLoops(Loop &l1, Loop &l2) {
+  D2("--- START ADJACENCY CHECK ---")
   // Try to retrieve both guard branch instructions
   BranchInst *guardBranch1 = l1.getLoopGuardBranch();
   BranchInst *guardBranch2 = l2.getLoopGuardBranch();
@@ -142,7 +143,7 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
     
         // Check if first BB instruction is the branch condition
         if (dyn_cast<Instruction>(S->begin()) != dyn_cast<Instruction>(guardBranch2->getCondition())) {
-          D2("\tLoops are not adjacent")
+          D2("\tLoops are not adjacent - EXIT CHECK WITH FALSE")
           return false;
         }
       }
@@ -153,26 +154,27 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
     
     // The first loop must have a single exit block
     if ( !l1.getExitBlock() ){
-      D2("\tMore than one exit block for the loop ")
+      D2("\tMore than one exit block for the loop - EXIT CHECK WITH FALSE")
       return false;
     }
 
     // normal form loops (only case we consider) always have the preheader
     if ( l1.getExitBlock() == l2.getLoopPreheader() ){
-      D3( " \tThe exit block of the first loop is the preheader of the second loop " )
+      D3( "\tThe exit block of the first loop is the preheader of the second loop " )
       // check if there are no statements between loops (the first instruction is a branch)
       if( !isa<BranchInst>(l1.getExitBlock()->begin()) ){
-        D2 ( " \tLoops are not adjacent" )
+        D2 ( "\tLoops are not adjacent - EXIT CHECK WITH FALSE" )
         return false;
       }
     }
   } else {
     // Loops are not both guarded or both not guarded (acts as a fallback exit condition)
-    D2("Not both guarded or not guarded")
+    D2("\tNot both guarded or not guarded - EXIT CHECK WITH FALSE")
     return false;
   }
   
   // All checks passed
+  D2 ( "\tLoops are adjacent - EXIT CHECK WITH TRUE" )
   return true;
 }
       
@@ -183,18 +185,20 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
 * - if the loops are bot not guarded we need to check if l1 preheader dominates l2 header AND if l2 preheader postdominates l1 header
 */
 bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &PDT) {
+  D2("--- START CTRL FLOW EQUIVALENCY CHECK ---")
   if ( l1.isGuarded() && l2.isGuarded() ) {
     if ( DT.dominates(getGuardBlock(l1), getGuardBlock(l2)) && PDT.dominates( getGuardBlock(l2), getGuardBlock(l1) ) ) {
-      D2( "\tGuarded loops are control flow equivalent " )
+      D2( "\tGuarded loops are control flow equivalent - EXIT CHECK WITH TRUE" )
       return true;
     }
   } else if ( !l1.isGuarded() && !l2.isGuarded() ) { 
     if ( DT.dominates(l1.getLoopPreheader(), l2.getLoopPreheader()) && PDT.dominates( l2.getLoopPreheader(), l1.getLoopPreheader() ) ) {
-      D2( "\tLoops are control flow equivalent " )
+      D2( "\tLoops are control flow equivalent - EXIT CHECK WITH TRUE" )
       return true;
     } 
   }
 
+  D2( "\tLoops are not control flow equivalent - EXIT CHECK WITH FALSE" )
   return false;
 }
 
@@ -202,21 +206,23 @@ bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &
 * Function that checks if two loops iterate the same amount of times
 */
 bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
+  D2("--- START ITERATION NUMBER CHECK ---")
   const SCEV *itTimes1 = SE.getBackedgeTakenCount(&l1);
   const SCEV *itTimes2 = SE.getBackedgeTakenCount(&l2);
 
   if (isa<SCEVCouldNotCompute>(itTimes1) || isa<SCEVCouldNotCompute>(itTimes2)) {
-    D2("\tCannot determine iteration count for one of the loops")
+    D2("\tCannot determine iteration count for one of the loops - EXIT CHECK WITH FALSE")
     return false;
   }
   D2( "\tBack-edge count of L1: " << *itTimes1 << "\tSCEV type: " << *itTimes1->getType() )
   D2( "\tBack-edge count of L2: " << *itTimes2 << "\tSCEV type: " << *itTimes2->getType() )
 
   if (itTimes1 == itTimes2) {
-    D2("\tLoops iterate the same amount of times")
+    D2("\tLoops iterate the same amount of times - EXIT CHECK WITH TRUE")
     return true;
   }
 
+  D2("\tLoops do not iterate the same amount of times - EXIT CHECK WITH FALSE")
   return false;
 }
 
@@ -338,7 +344,11 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
   
   for( auto L: loopsAfterFusion) {
     vector<Loop*> subLoops = L->getSubLoopsVector();
-    D2("RECURSIVE CALL ON " << *L->getHeader() << " SUBLOOPS")
+    #ifdef DEBUG
+    D2("RECURSIVE CALL ON SUBLOOPS FROM:")
+    L->getHeader()->printAsOperand(errs(),false);
+    errs() << '\n';
+    #endif
     fuseLevelNLoops(subLoops, DT, PDT, SE);
   }
 }
@@ -366,11 +376,11 @@ struct As04Pass: PassInfoMixin<As04Pass> {
     // Scalar Evolution Analysis
     ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
 
-    // small vector of loops
+    // Small vector of loops
     vector<Loop*> functionLoops = LI.getTopLevelLoops();
 
     #ifdef DEBUG
-    D1("Print all loops from smallvector")
+    D1("Print Top-level loops")
     for ( auto L: functionLoops) {
       D1( *L)
     }
