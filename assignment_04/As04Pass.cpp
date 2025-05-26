@@ -40,21 +40,21 @@ using namespace std;
 #define D3_COLOR raw_ostream::RED
 
 #if DEBUG == 0
-#define D1(x)
-#define D2(x)
-#define D3(x)
+  #define D1(x)
+  #define D2(x)
+  #define D3(x)
 #elif DEBUG == 1
-#define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
-#define D2(x)
-#define D3(x)
+  #define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
+  #define D2(x)
+  #define D3(x)
 #elif DEBUG == 2
-#define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
-#define D2(x) llvm::outs().changeColor(D2_COLOR) << x << '\n'; outs().resetColor();
-#define D3(x)
+  #define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
+  #define D2(x) llvm::outs().changeColor(D2_COLOR) << x << '\n'; outs().resetColor();
+  #define D3(x)
 #elif DEBUG == 3
-#define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
-#define D2(x) llvm::outs().changeColor(D2_COLOR) << x << '\n'; outs().resetColor();
-#define D3(x) llvm::outs().changeColor(D3_COLOR) << x << '\n'; outs().resetColor();
+  #define D1(x) llvm::outs().changeColor(D1_COLOR) << x << '\n'; outs().resetColor();
+  #define D2(x) llvm::outs().changeColor(D2_COLOR) << x << '\n'; outs().resetColor();
+  #define D3(x) llvm::outs().changeColor(D3_COLOR) << x << '\n'; outs().resetColor();
 #endif
 
 /*
@@ -197,7 +197,7 @@ bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &
       return true;
     } 
   }
-
+  
   D2( "\tLoops are not control flow equivalent - EXIT CHECK WITH FALSE" )
   return false;
 }
@@ -209,7 +209,7 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   D2("--- START ITERATION NUMBER CHECK ---")
   const SCEV *itTimes1 = SE.getBackedgeTakenCount(&l1);
   const SCEV *itTimes2 = SE.getBackedgeTakenCount(&l2);
-
+  
   if (isa<SCEVCouldNotCompute>(itTimes1) || isa<SCEVCouldNotCompute>(itTimes2)) {
     D2("\tCannot determine iteration count for one of the loops - EXIT CHECK WITH FALSE")
     return false;
@@ -221,7 +221,7 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     D2("\tLoops iterate the same amount of times - EXIT CHECK WITH TRUE")
     return true;
   }
-
+  
   D2("\tLoops do not iterate the same amount of times - EXIT CHECK WITH FALSE")
   return false;
 }
@@ -297,51 +297,51 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolutio
 
 void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
 
+  // Barrier check for empty vector
+  if (currentLevelLoops.empty()) {
+    D1("Fusion function received empty vector - exiting")
+    return;
+  }
+
   vector<Loop*> loopsAfterFusion;
 
   // Iterate over current level loops (in current loop nest)
-  bool fusion_happened = false;
-  do {
-    if (currentLevelLoops.size() < 2) {
-      D1("Less than 2 loops in vector - aborting iteration")
-      // push back if not already in the array
-        if ((currentLevelLoops.size() == 1) ) {
-          loopsAfterFusion.push_back(*currentLevelLoops.begin());
-        }
-      break;
-    }
-    for ( auto it = currentLevelLoops.end()-1 ; it != currentLevelLoops.begin(); --it ) {
-      D1("--> ENTERING LOOP PAIR ANALYSIS <--")
-      Loop *loop1 = *it;
-      Loop *loop2 = *(it-1);
+  auto loopIt = currentLevelLoops.begin();
 
-      D1("Loop1 header: " << *loop1->getHeader());
-      D1("Loop2 header: " << *loop2->getHeader());
-      
-      // Checks
-      // if (!areAdjacentLoops(*loop1, *loop2) && !areControlFlowEq(*loop1, *loop2, DT, PDT) && !iterateEqualTimes(*loop1, *loop2, SE)) {
-      if (false) {  
-        D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
-        // fuse(loop1, loop2) function
-        fusion_happened = true;
-        currentLevelLoops.erase( it-1 );
-        // push back if not already in the array
-        if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
-          loopsAfterFusion.push_back(loop1);
-        }
-        break;
-      } else {
-        D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
-        currentLevelLoops.erase(it);
-        // push back if not already in the array
-        if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
-          loopsAfterFusion.push_back(loop1);
-        }
-      }
+  // Skip checks if only one element in vector
+  while (loopIt != currentLevelLoops.end()-1) {
+    D1("=== ENTERING LOOP PAIR ANALYSIS ITERATION ===")
+    // Get first two adjacent loops in vector
+    Loop *loop1 = *loopIt;
+    Loop *loop2 = *(loopIt + 1);
+    
+    #ifdef DEBUG
+    D1("Loop1 header: "); loop1->getHeader()->printAsOperand(errs(), false); errs() << '\n';
+    D1("Loop2 header: "); loop2->getHeader()->printAsOperand(errs(), false); errs() << '\n';
+    #endif
+    
+    // Checks for loop fusion
+    if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE)) {
+      D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+      // fuse(loop1, loop2) function
+      currentLevelLoops.erase( loopIt+1 );
+    } else {
+      D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
+      currentLevelLoops.erase( loopIt );
     }
-  } while (fusion_happened);
-  // Recursive calls on each next loop nest
+    // In both cases add first loop to fusion results vector, if not already present
+    if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
+      loopsAfterFusion.push_back(loop1);
+    }
+    D1("=== END OF ANALYSIS ITERATION ===")
+  }
+  // Last element in vector (also if parameter already came with a single loop inside)
+  D1("=== ONE LOOP LEFT - STOP ANALYZING ===")
+  if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), *loopIt) == loopsAfterFusion.end()) {
+    loopsAfterFusion.push_back(*loopIt);
+  }
   
+  // Recursive calls on each next loop nest
   for( auto L: loopsAfterFusion) {
     vector<Loop*> subLoops = L->getSubLoopsVector();
     #ifdef DEBUG
@@ -378,6 +378,8 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
     // Small vector of loops
     vector<Loop*> functionLoops = LI.getTopLevelLoops();
+    // Get proper loop ordering
+    reverse(functionLoops.begin(), functionLoops.end());
 
     #ifdef DEBUG
     D1("Print Top-level loops")
