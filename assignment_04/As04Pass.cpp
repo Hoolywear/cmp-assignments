@@ -148,6 +148,8 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
         }
       }
     }
+    D1("\tALL GUARD CHECKS WENT GOOD, BUT GUARDED LOOP FUSION IS NOT (YET) SUPPORTED - EXIT CHECK WITH FALSE")
+    return false;
   } else if (!guardBranch1 && !guardBranch2) {
     
     D2( "\tBoth loops are not guarded" )
@@ -253,43 +255,43 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
 /*
 * function that checks if the loops have negative distance dependencies
 */
-bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolution &SE){
+bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
 
-  // vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
-  // vector<Instruction*> loadInsts2 = getMemInst(l2, true);  // get loads of loop2  
+  vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
+  vector<Instruction*> loadInsts2 = getMemInst(l2, true);  // get loads of loop2  
 
-  // // iterate over the first loop memory instructions
-  // for ( auto I1: storeInsts1 ) {
-  //   Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
-  //   Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
+  // iterate over the first loop memory instructions
+  for ( auto I1: storeInsts1 ) {
+    Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
+    Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
     
-  //   D1(" \t Pointer operand 1: " << *getBasePtr1 );
+    D1(" \t Pointer operand 1: " << *getBasePtr1 );
 
-  //   for ( auto I2: loadInsts2 ) {
-  //     Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
-  //     Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
-  //     D1(" \t Pointer operand 2: " << *getBasePtr2 );
+    for ( auto I2: loadInsts2 ) {
+      Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
+      Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
+      D1(" \t Pointer operand 2: " << *getBasePtr2 );
 
-  //     if ( getBasePtr1 != getBasePtr2 ){
-  //       D2( " \t Load and store working on different arrays " )
-  //       continue;
-  //     }
+      if ( getBasePtr1 != getBasePtr2 ){
+        D2( " \t Load and store working on different arrays " )
+        continue;
+      }
+
+      const SCEV *SCEVl1 = SE.getSCEVAtScope(getPtrInstr1, &l1);
+      const SCEV *SCEVl2 = SE.getSCEVAtScope(getPtrInstr2, &l2);
       
-  //     const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr1, &l1));
-  //     const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(getPtrInstr2, &l2));
+      // const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr1, &l1));
+      // const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr2, &l2));
 
-  //     D2( "\t SCEV 1: " << *SCEVl1->getStart() );
-  //     if ( SCEVl2 )
-  //       D2( "\t SCEV 2: " << *SCEVl2 );
+      D2( "\t SCEV 1: " << *SCEVl1 );
+      if ( SCEVl2 )
+        D2( "\t SCEV 2: " << *SCEVl2 );
 
 
-      // const SCEV *minusSCEV = SE.getMinusSCEV(SE.removePointerBase(SCEVl1), SE.removePointerBase(SCEVl2), SCEV::NoWrapMask);
-      // D2( "\t Minus SCEV: " << *minusSCEV );
-    // }
-  // }
-
-  // vector<Instruction*> storeInsts2 = getMemInst(l2, false); // get stores of loop2
-  // vector<Instruction*> loasInsts1 = getMemInst(l1, true);  // get loads of loop1
+      const SCEV *minusSCEV = SE.getMinusSCEV(SCEVl1, SCEVl2, SCEV::NoWrapMask);
+      D2( "\t Minus SCEV: " << *minusSCEV );
+    }
+  }
 
 
   return false;
@@ -310,11 +312,11 @@ PHINode *getPHIFromHeader(Loop &L) {
 */
 bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
-  BasicBlock *h1 = l1.getHeader();
-  BasicBlock *h2 = l2.getHeader();
+  // BasicBlock *h1 = l1.getHeader();
+  // BasicBlock *h2 = l2.getHeader();
 
-  D3("Loop1 header: " << *h1)
-  D3("Loop2 header: " << *h2)
+  // D3("Loop1 header: " << *h1)
+  // D3("Loop2 header: " << *h2)
 
   PHINode *phi1 = getPHIFromHeader(l1);
   PHINode *phi2 = getPHIFromHeader(l2);
@@ -326,6 +328,17 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     D2("PHI 1: " << *phi1)
     D2("PHI 2: " << *phi2)
   }
+
+  phi2->replaceAllUsesWith(phi1);
+
+  // Move body2 before body1
+
+  // Link first loop's exiting block (and eventually guard) 
+  // to second loop's exit block
+
+  // Unlink second loop's other blocks from cfg
+
+
 
   return true;
 }
@@ -357,7 +370,7 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
     #endif
     
     // Checks for loop fusion
-    if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE)) {
+    if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && !haveNegativeDistance(*loop1,*loop2,SE)) {
       D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
       // fuse the loops
       fuseLoops(*loop1, *loop2, SE);
