@@ -295,6 +295,21 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolutio
   return false;
 }
 
+/*
+* The function fuse two loops
+*/
+bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
+
+  // replace second induction variable uses with first one
+  Instruction *ind1 = l1.getHeader()->front();
+  Instruction *ind2 = l2.getHeader()->front();
+  D2( "\tInduction 1: " << ind1 )
+  D2( "\tInduction 2: " << ind2 )
+
+  return true;
+}
+
+
 void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
 
   // Barrier check for empty vector
@@ -323,7 +338,8 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
     // Checks for loop fusion
     if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE)) {
       D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
-      // fuse(loop1, loop2) function
+      // fuse the loops
+      fuseLoops(*loop1, *loop2, SE);
       currentLevelLoops.erase( loopIt+1 );
     } else {
       D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
@@ -389,22 +405,6 @@ struct As04Pass: PassInfoMixin<As04Pass> {
     #endif
 
     fuseLevelNLoops(functionLoops, DT, PDT, SE);
-
-    // reverse iterate over loops beacuse the first one is the last in the program 
-    // for ( auto it = LI.rbegin() ; it != LI.rend()-1; ++it ){
-    //   D1("--> ENTERING LOOP PAIR ANALYSIS <--")
-    //   Loop *loop1 = *it;
-    //   Loop *loop2 = *(it+1);
-
-    //   D1("Loop1 header: " << *loop1->getHeader());
-    //   D1("Loop2 header: " << *loop2->getHeader());
-      
-    //   // Checks
-    //   if (!areAdjacentLoops(*loop1, *loop2) && !areControlFlowEq(*loop1, *loop2, DT, PDT) && !iterateEqualTimes(*loop1, *loop2, SE)) {
-        
-    //     continue;
-    //   }
-    // }
 
   	return PreservedAnalyses::all();
 }
