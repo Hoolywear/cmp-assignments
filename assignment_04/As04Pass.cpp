@@ -295,16 +295,37 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, DependenceInfo &DI, ScalarEvolutio
   return false;
 }
 
+PHINode *getPHIFromHeader(Loop &L) {
+  for (auto &I: *L.getHeader()) {
+    if (isa<PHINode>(I)) {
+      return dyn_cast<PHINode>(&I);
+    }
+  }
+
+  return nullptr;
+}
+
 /*
 * The function fuse two loops
 */
 bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
-  // replace second induction variable uses with first one
-  Instruction *ind1 = l1.getHeader()->front();
-  Instruction *ind2 = l2.getHeader()->front();
-  D2( "\tInduction 1: " << ind1 )
-  D2( "\tInduction 2: " << ind2 )
+  BasicBlock *h1 = l1.getHeader();
+  BasicBlock *h2 = l2.getHeader();
+
+  D3("Loop1 header: " << *h1)
+  D3("Loop2 header: " << *h2)
+
+  PHINode *phi1 = getPHIFromHeader(l1);
+  PHINode *phi2 = getPHIFromHeader(l2);
+
+  if (!phi1 || !phi2) {
+    D2("Couldn't find one of the induction variable PHI nodes - aborting fusion")
+    return false;
+  } else {
+    D2("PHI 1: " << *phi1)
+    D2("PHI 2: " << *phi2)
+  }
 
   return true;
 }
