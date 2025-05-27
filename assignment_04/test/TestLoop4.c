@@ -6,7 +6,7 @@ int foo(int size, int A[]) {
     }
 
     for (int j = 0; j < size; j++) {
-      A[j] = A[j+1];
+      A[j] = A[j];
     }
 
     return 0;
