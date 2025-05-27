@@ -82,7 +82,7 @@ BasicBlock *getGuardBlock(Loop &L) {
 
 //   for ( auto &I: *preHeader ){
 
-//     D1( "\t Current instruction: " << I)
+//     D1( "\tCurrent instruction: " << I)
 
 //     if ( !isa<BranchInst>(I) ){
 
@@ -93,7 +93,7 @@ BasicBlock *getGuardBlock(Loop &L) {
 //         D3("\tChecking " << I << "'s use: " << *inst )
 
 //         if ( L.contains(inst) ){
-//           D1("\t Instruction has use inside second loop")
+//           D1("\tInstruction has use inside second loop")
 //           return true;
 //         }
 //       }
@@ -134,12 +134,12 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
 
   // Logic to retrieve correct "adjacent BB candidates" depending if loops are both guarded or not
   if (guardBranch1 && guardBranch2 && checkGuardCondition(guardBranch1, guardBranch2)) {
-    D2( "\t Loops are both guarded and with identical conditions" )
+    D2( "\tLoops are both guarded and with identical conditions" )
     // iterate on the two successor BBs and verify if one exit of the first loop
     // is the guard BB of the second loop
     for (auto S: guardBranch1->successors()) {
       if ( (guardBranch2->getParent()) == S ) {
-        D3("\t First loop's guard exit is the second loop's guard BB " << *S)
+        D3("\tFirst loop's guard exit is the second loop's guard BB " << *S)
     
         // Check if first BB instruction is the branch condition
         if (dyn_cast<Instruction>(S->begin()) != dyn_cast<Instruction>(guardBranch2->getCondition())) {
@@ -219,6 +219,8 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   D2( "\tBack-edge count of L1: " << *itTimes1 << "\tSCEV type: " << *itTimes1->getType() )
   D2( "\tBack-edge count of L2: " << *itTimes2 << "\tSCEV type: " << *itTimes2->getType() )
 
+  D2("\tminus: " << SE.getMinusSCEV(itTimes1,itTimes2)->isZero())
+
   if (itTimes1 == itTimes2) {
     D2("\tLoops iterate the same amount of times - EXIT CHECK WITH TRUE")
     return true;
@@ -241,10 +243,10 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
     for ( auto &I: *B ){
       // check if the instruction is a load or a store
       if ( isLoad && isa<LoadInst>(I)){
-        D3("\t\t Found a load instruction: " << I );
+        D3("\t\tFound a load instruction: " << I );
         memInsts.push_back(&I);
       }else if( !isLoad && isa<StoreInst>(I)){
-        D3("\t\t Found a store instruction: " << I );
+        D3("\t\tFound a store instruction: " << I );
         memInsts.push_back(&I);
       }
     }
@@ -255,6 +257,13 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
 /*
 * function that checks if the loops have negative distance dependencies
 */
+
+const SCEV *getSCEVwithNoPtr(Value *memPtr, Loop &L, ScalarEvolution &SE) {
+  if (const SCEV *S = SE.removePointerBase(SE.getSCEVAtScope(memPtr, &L))) {
+    return S;
+  }
+  return nullptr;
+}
 bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
 
   vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
@@ -265,31 +274,89 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
     Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
     Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
     
-    D1(" \t Pointer operand 1: " << *getBasePtr1 );
+    D1("\tPointer operand 1: " << *getBasePtr1 );
 
     for ( auto I2: loadInsts2 ) {
       Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
       Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
-      D1(" \t Pointer operand 2: " << *getBasePtr2 );
+      D1("\tPointer operand 2: " << *getBasePtr2 );
 
       if ( getBasePtr1 != getBasePtr2 ){
-        D2( " \t Load and store working on different arrays " )
+        D2( "\tLoad and store working on different arrays " )
         continue;
       }
 
-      const SCEV *SCEVl1 = SE.getSCEVAtScope(getPtrInstr1, &l1);
-      const SCEV *SCEVl2 = SE.getSCEVAtScope(getPtrInstr2, &l2);
+      // const SCEV *SCEVl1 = SE.getSCEVAtScope(getPtrInstr1, &l1);
+      // const SCEV *SCEVl2 = SE.getSCEVAtScope(getPtrInstr2, &l2);
+      
+      // if (SCEVl1 && SCEVl2) {
+      //   D2( "\tSCEV 1: " << *SCEVl1 );
+      //   D2( "\tSCEV 2: " << *SCEVl2 );
+      // } else {
+      //   D2("\tINVALID SCEV: aborting")
+      //   return true;
+      // }
+
+      // const SCEV *SCEVNoPtr1 = SE.removePointerBase(SCEVl1);
+      // const SCEV *SCEVNoPtr2 = SE.removePointerBase(SCEVl2);
+
+      Instruction *ptrOffsetInst1 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr1)->getOperand(1))->getOperand(0));
+      Instruction *ptrOffsetInst2 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr2)->getOperand(1))->getOperand(0));
+
+      const SCEVAddRecExpr *Trip0 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst1));
+      const SCEVAddRecExpr *Trip1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst2));
+      if (Trip0 && Trip1) {
+        const SCEV *Start0 = Trip0->getStart();
+        const SCEV *Start1 = Trip1->getStart();
+        D2("SCEV 1: " << *Trip0)
+        D2("SCEV 2: " << *Trip1)
+
+        D2("SCEV 1 start: " << *Start0)
+        D2("SCEV 2 start: " << *Start0)
+      }
+
+      const SCEV *offsetSCEV1 = SE.getSCEVAtScope(ptrOffsetInst1, &l1);
+      const SCEV *offsetSCEV2 = SE.getSCEVAtScope(ptrOffsetInst2, &l2);
+
+      // const SCEV *SCEVNoPtr1 = getSCEVwithNoPtr(getPtrInstr1, l1, SE);
+      // const SCEV *SCEVNoPtr2 = getSCEVwithNoPtr(getPtrInstr2, l2, SE);
+
+
+
+
+      // D2(SE.containsAddRecurrence(SCEVl1))
+      // D2(SE.containsAddRecurrence(SCEVl2))
+
+      // D2(SE.containsAddRecurrence(SCEVNoPtr1))
+      // D2(SE.containsAddRecurrence(SCEVNoPtr2))
+
+
+      // for (auto scev: SCEVNoPtr1->operands()) {
+      //   D2("PTR1 op: " << *scev << " is constant? " << isa<SCEVConstant>(scev))
+      // }
+      // for (auto scev: SCEVNoPtr2->operands()) {
+      //   D2("PTR2 op: " << *scev << " is constant? " << isa<SCEVConstant>(scev))
+      // }
+      
+
+      // if (auto *C = dyn_cast<SCEVConstant>(SCEVNoPtr1)) {
+      //   const APInt &V = C->getAPInt();
+      //   D2(V)
+      // } else {D2('A')}
+
+      // if (auto *C = dyn_cast<SCEVConstant>(SCEVNoPtr2)) {
+      //   const APInt &V = C->getAPInt();
+      //   D2(V)
+      // } else {D2('A')}
       
       // const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr1, &l1));
       // const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr2, &l2));
 
-      D2( "\t SCEV 1: " << *SCEVl1 );
-      if ( SCEVl2 )
-        D2( "\t SCEV 2: " << *SCEVl2 );
+      const SCEV *minusSCEV = SE.getMinusSCEV(offsetSCEV1, offsetSCEV2);
+      D2( "\tMinus SCEV: " << *minusSCEV );
 
+      D2(SE.isKnownNegative(minusSCEV))
 
-      const SCEV *minusSCEV = SE.getMinusSCEV(SCEVl1, SCEVl2, SCEV::NoWrapMask);
-      D2( "\t Minus SCEV: " << *minusSCEV );
     }
   }
 
