@@ -254,131 +254,127 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
   return memInsts;
 }
 
+
+/*
+* Get a APInt from a MinusSCEV Expression (recursive version)
+* Return an APInt that is the evaluation of MinusSCEV constants
+* If the result is < 0, then loops have negative distance dependencies
+*/ 
+APInt evaluateMinusSCEV(const SCEV *scev) {
+  // Ottieni la bitwidth del tipo SCEV corrente
+  unsigned bitwidth = scev->getType()->getIntegerBitWidth();
+  
+  // BASE CASE: SCEV is constant => return the value
+  if (const auto *C = dyn_cast<SCEVConstant>(scev)) {
+    const APInt &Val = C->getValue()->getValue();
+    D1("\t\tConstant found: " << Val);
+    return Val;
+  }
+  
+  // SCEVAddRecExpr represents a recursive formula tied to a loop: {start,+,step}
+  // if a SCEVAddRecExpr if found => {start,+,step} case => evaluate this with recursive call
+  if (const auto *AddRec = dyn_cast<SCEVAddRecExpr>(scev)) {
+    D2("\t\tAddRec found: " << *scev << ", evaluating start");
+    // Per una ricorrenza, ritorna il valore iniziale
+    return evaluateMinusSCEV(AddRec->getStart());
+  }
+  /*
+  * The following conditions checks the different types of operations we need to handle
+  */
+  // check fot an Add in the SCEV
+  if (const auto *AddExpr = dyn_cast<SCEVAddExpr>(scev)) {
+    D2("\t\tAddExpr: " << *scev);
+    APInt sum(bitwidth, 0);
+    for (const SCEV *Op : AddExpr->operands()) {
+      APInt opVal = evaluateMinusSCEV(Op);
+      sum += opVal;
+    }
+    return sum;
+  }
+  
+  // check a Mul in the SCEV
+  if (const auto *MulExpr = dyn_cast<SCEVMulExpr>(scev)) {
+    D2("\t\tMulExpr: " << *scev);
+    APInt prod(bitwidth, 1);
+    for (const SCEV *Op : MulExpr->operands()) {
+      APInt opVal = evaluateMinusSCEV(Op);
+      prod *= opVal;
+    }
+    return prod;
+  }
+  
+  // checks for Sext expression
+  if (const auto *Sext = dyn_cast<SCEVSignExtendExpr>(scev)) {
+    D2("\t\tSignExtend: " << *scev);
+    APInt opVal = evaluateMinusSCEV(Sext->getOperand());
+    return opVal.sext(bitwidth);
+  }
+  
+  D2(" \t\tUnsable to handled SCEV type - RETURN 0");
+  return APInt(bitwidth, 0);
+}
+
 /*
 * function that checks if the loops have negative distance dependencies
 */
-
-const SCEV *getSCEVwithNoPtr(Value *memPtr, Loop &L, ScalarEvolution &SE) {
-  if (const SCEV *S = SE.removePointerBase(SE.getSCEVAtScope(memPtr, &L))) {
-    return S;
-  }
-  return nullptr;
-}
-
-
-
-bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
-
+bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
-  vector<Instruction*> loadInsts2 = getMemInst(l2, true);  // get loads of loop2  
+  vector<Instruction*> loadInsts2 = getMemInst(l2, true);   // get loads of loop2  
 
-  // iterate over the first loop memory instructions
-  for ( auto I1: storeInsts1 ) {
-    Value *getPtrInstr1 = dyn_cast<StoreInst>(I1)->getPointerOperand();
-    Value *getBasePtr1 = dyn_cast<GetElementPtrInst>(getPtrInstr1)->getPointerOperand();
-    
-    D1("\tPointer operand 1: " << *getBasePtr1 );
+  for (auto *I1 : storeInsts1) {
+    auto *store = dyn_cast<StoreInst>(I1);
 
-    for ( auto I2: loadInsts2 ) {
-      Value *getPtrInstr2 = dyn_cast<LoadInst>(I2)->getPointerOperand();
-      Value *getBasePtr2 = dyn_cast<GetElementPtrInst>(getPtrInstr2)->getPointerOperand();
-      D1("\tPointer operand 2: " << *getBasePtr2 );
+    Value *storePtr = store->getPointerOperand();
+    auto *gep1 = dyn_cast<GetElementPtrInst>(storePtr);
 
-      if ( getBasePtr1 != getBasePtr2 ){
-        D2( "\tLoad and store working on different arrays " )
+    Value *basePtr1 = gep1->getPointerOperand();
+    D1("\tPointer operand 1: " << *basePtr1);
+
+    for (auto *I2 : loadInsts2) {
+      auto *load = dyn_cast<LoadInst>(I2);
+
+      Value *loadPtr = load->getPointerOperand();
+      auto *gep2 = dyn_cast<GetElementPtrInst>(loadPtr);
+
+      Value *basePtr2 = gep2->getPointerOperand();
+      D1("\tPointer operand 2: " << *basePtr2);
+
+      // not working on the same array
+      if (basePtr1 != basePtr2) {
+        D2("\tLoad and store working on different arrays");
         continue;
       }
 
-      const SCEV *SCEVl1 = SE.getSCEVAtScope(getPtrInstr1, &l1);
-      const SCEV *SCEVl2 = SE.getSCEVAtScope(getPtrInstr2, &l2);
-      
-      // if (SCEVl1 && SCEVl2) {
-      //   D2( "\tSCEV 1: " << *SCEVl1 );
-      //   D2( "\tSCEV 2: " << *SCEVl2 );
-      // } else {
-      //   D2("\tINVALID SCEV: aborting")
-      //   return true;
-      // }
+      // Scalar evolution on pointer load and store instructions 
+      const SCEV *scev1 = SE.getSCEVAtScope(storePtr, &l1);
+      const SCEV *scev2 = SE.getSCEVAtScope(loadPtr, &l2);
+      const SCEV *diff = SE.getMinusSCEV(scev1, scev2);
 
-      // const SCEV *SCEVNoPtr1 = SE.removePointerBase(SCEVl1);
-      // const SCEV *SCEVNoPtr2 = SE.removePointerBase(SCEVl2);
+      D2("\tMinus SCEV: " << *diff);
 
-      // Instruction *ptrOffsetInst1 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr1)->getOperand(1))->getOperand(0));
-      // Instruction *ptrOffsetInst2 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr2)->getOperand(1))->getOperand(0));
-
-      // const SCEVAddRecExpr *Trip0 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst1));
-      // const SCEVAddRecExpr *Trip1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst2));
-      // if (Trip0 && Trip1) {
-      //   const SCEV *Start0 = Trip0->getStart();
-      //   const SCEV *Start1 = Trip1->getStart();
-      //   D2("SCEV 1: " << *Trip0)
-      //   D2("SCEV 2: " << *Trip1)
-
-      //   D2("SCEV 1 start: " << *Start0)
-      //   D2("SCEV 2 start: " << *Start0)
-      // }
-
-      // const SCEV *offsetSCEV1 = SE.getSCEVAtScope(ptrOffsetInst1, &l1);
-      // const SCEV *offsetSCEV2 = SE.getSCEVAtScope(ptrOffsetInst2, &l2);
-
-      // const SCEV *SCEVNoPtr1 = getSCEVwithNoPtr(getPtrInstr1, l1, SE);
-      // const SCEV *SCEVNoPtr2 = getSCEVwithNoPtr(getPtrInstr2, l2, SE);
-
-
-
-
-      // D2(SE.containsAddRecurrence(SCEVl1))
-      // D2(SE.containsAddRecurrence(SCEVl2))
-
-      // D2(SE.containsAddRecurrence(SCEVNoPtr1))
-      // D2(SE.containsAddRecurrence(SCEVNoPtr2))
-
-
-      // for (auto scev: SCEVNoPtr1->operands()) {
-      //   D2("PTR1 op: " << *scev << " is constant? " << isa<SCEVConstant>(scev))
-      // }
-      // for (auto scev: SCEVNoPtr2->operands()) {
-      //   D2("PTR2 op: " << *scev << " is constant? " << isa<SCEVConstant>(scev))
-      // }
-      
-
-      // if (auto *C = dyn_cast<SCEVConstant>(SCEVNoPtr1)) {
-      //   const APInt &V = C->getAPInt();
-      //   D2(V)
-      // } else {D2('A')}
-
-      // if (auto *C = dyn_cast<SCEVConstant>(SCEVNoPtr2)) {
-      //   const APInt &V = C->getAPInt();
-      //   D2(V)
-      // } else {D2('A')}
-      
-      // const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr1, &l1));
-      // const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr2, &l2));
-
-      const SCEV *minusSCEV = SE.getMinusSCEV(SCEVl1, SCEVl2);
-      D2( "\tMinus SCEV: " << *minusSCEV );
-
-      D2("È negativa? " << SE.isKnownNegative(minusSCEV))
-
-      const SCEV *temp = minusSCEV;
-      const SCEVConstant *ConstDiff = dyn_cast<SCEVConstant>(temp);
-      D2( " \tConst Diff: " << ConstDiff )
-
-      while(!ConstDiff){
-        temp = temp->operands()[0]; 
-        ConstDiff = dyn_cast<SCEVConstant>(temp);
+      // Check negative distance (works for constants)
+      if (SE.isKnownNegative(diff)) {
+        D2("\tKnown negative distance found - EXIT WITH TRUE");
+        return true;
       }
-      
-      int offset = ConstDiff->getValue()->getSExtValue();
-      outs() << "   Offset: " << offset << "\n";
 
+      APInt minusConst = evaluateMinusSCEV(diff);
+      D2("\tValue of the MinusSCEV: " << minusConst);
+
+      if ( minusConst.isNegative() ) {
+        D2 (" \tThe loops have negative distance dependencies - EXIT WITH TRUE ")
+        return true;
+      }
 
     }
   }
-
+  D2(" \tLoops have no negative distance dependencies - EXIT WITH FALSE ")
   return false;
 }
 
+/*
+* Get the PHI node from the header basic block
+*/
 PHINode *getPHIFromHeader(Loop &L) {
   for (auto &I: *L.getHeader()) {
     if (isa<PHINode>(I)) {
@@ -425,7 +421,9 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   return true;
 }
 
-
+/*
+* 
+*/
 void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
 
   // Barrier check for empty vector
