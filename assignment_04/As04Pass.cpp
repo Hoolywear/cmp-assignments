@@ -264,6 +264,9 @@ const SCEV *getSCEVwithNoPtr(Value *memPtr, Loop &L, ScalarEvolution &SE) {
   }
   return nullptr;
 }
+
+
+
 bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
 
   vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
@@ -286,8 +289,8 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
         continue;
       }
 
-      // const SCEV *SCEVl1 = SE.getSCEVAtScope(getPtrInstr1, &l1);
-      // const SCEV *SCEVl2 = SE.getSCEVAtScope(getPtrInstr2, &l2);
+      const SCEV *SCEVl1 = SE.getSCEVAtScope(getPtrInstr1, &l1);
+      const SCEV *SCEVl2 = SE.getSCEVAtScope(getPtrInstr2, &l2);
       
       // if (SCEVl1 && SCEVl2) {
       //   D2( "\tSCEV 1: " << *SCEVl1 );
@@ -300,23 +303,23 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
       // const SCEV *SCEVNoPtr1 = SE.removePointerBase(SCEVl1);
       // const SCEV *SCEVNoPtr2 = SE.removePointerBase(SCEVl2);
 
-      Instruction *ptrOffsetInst1 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr1)->getOperand(1))->getOperand(0));
-      Instruction *ptrOffsetInst2 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr2)->getOperand(1))->getOperand(0));
+      // Instruction *ptrOffsetInst1 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr1)->getOperand(1))->getOperand(0));
+      // Instruction *ptrOffsetInst2 = dyn_cast<Instruction>(dyn_cast<Instruction>(dyn_cast<Instruction>(getPtrInstr2)->getOperand(1))->getOperand(0));
 
-      const SCEVAddRecExpr *Trip0 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst1));
-      const SCEVAddRecExpr *Trip1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst2));
-      if (Trip0 && Trip1) {
-        const SCEV *Start0 = Trip0->getStart();
-        const SCEV *Start1 = Trip1->getStart();
-        D2("SCEV 1: " << *Trip0)
-        D2("SCEV 2: " << *Trip1)
+      // const SCEVAddRecExpr *Trip0 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst1));
+      // const SCEVAddRecExpr *Trip1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEV(ptrOffsetInst2));
+      // if (Trip0 && Trip1) {
+      //   const SCEV *Start0 = Trip0->getStart();
+      //   const SCEV *Start1 = Trip1->getStart();
+      //   D2("SCEV 1: " << *Trip0)
+      //   D2("SCEV 2: " << *Trip1)
 
-        D2("SCEV 1 start: " << *Start0)
-        D2("SCEV 2 start: " << *Start0)
-      }
+      //   D2("SCEV 1 start: " << *Start0)
+      //   D2("SCEV 2 start: " << *Start0)
+      // }
 
-      const SCEV *offsetSCEV1 = SE.getSCEVAtScope(ptrOffsetInst1, &l1);
-      const SCEV *offsetSCEV2 = SE.getSCEVAtScope(ptrOffsetInst2, &l2);
+      // const SCEV *offsetSCEV1 = SE.getSCEVAtScope(ptrOffsetInst1, &l1);
+      // const SCEV *offsetSCEV2 = SE.getSCEVAtScope(ptrOffsetInst2, &l2);
 
       // const SCEV *SCEVNoPtr1 = getSCEVwithNoPtr(getPtrInstr1, l1, SE);
       // const SCEV *SCEVNoPtr2 = getSCEVwithNoPtr(getPtrInstr2, l2, SE);
@@ -352,14 +355,26 @@ bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE){
       // const SCEVAddRecExpr *SCEVl1 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr1, &l1));
       // const SCEVAddRecExpr *SCEVl2 = dyn_cast<SCEVAddRecExpr>(SE.getSCEVAtScope(getBasePtr2, &l2));
 
-      const SCEV *minusSCEV = SE.getMinusSCEV(offsetSCEV1, offsetSCEV2);
+      const SCEV *minusSCEV = SE.getMinusSCEV(SCEVl1, SCEVl2);
       D2( "\tMinus SCEV: " << *minusSCEV );
 
-      D2(SE.isKnownNegative(minusSCEV))
+      D2("È negativa? " << SE.isKnownNegative(minusSCEV))
+
+      const SCEV *temp = minusSCEV;
+      const SCEVConstant *ConstDiff = dyn_cast<SCEVConstant>(temp);
+      D2( " \tConst Diff: " << ConstDiff )
+
+      while(!ConstDiff){
+        temp = temp->operands()[0]; 
+        ConstDiff = dyn_cast<SCEVConstant>(temp);
+      }
+      
+      int offset = ConstDiff->getValue()->getSExtValue();
+      outs() << "   Offset: " << offset << "\n";
+
 
     }
   }
-
 
   return false;
 }
