@@ -261,11 +261,12 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
 * If the result is < 0, then loops have negative distance dependencies
 */ 
 APInt evaluateMinusSCEV(const SCEV *scev) {
-  // Ottieni la bitwidth del tipo SCEV corrente
+  // Get current SCEV type bitwidth, to be used for APInt instances
   unsigned bitwidth = scev->getType()->getIntegerBitWidth();
   
   // BASE CASE: SCEV is constant => return the value
   if (const auto *C = dyn_cast<SCEVConstant>(scev)) {
+    // First retrieve the SCEV ConstantInt, and then the corresponding APInt value
     const APInt &Val = C->getValue()->getValue();
     D1("\t\tConstant found: " << Val);
     return Val;
@@ -274,14 +275,14 @@ APInt evaluateMinusSCEV(const SCEV *scev) {
   // SCEVAddRecExpr represents a recursive formula tied to a loop: {start,+,step}
   // if a SCEVAddRecExpr if found => {start,+,step} case => evaluate this with recursive call
   if (const auto *AddRec = dyn_cast<SCEVAddRecExpr>(scev)) {
-    D2("\t\tAddRec found: " << *scev << ", evaluating start");
+    D2("\t\tAddRec found: " << *scev << ", evaluating the start operand");
     // Per una ricorrenza, ritorna il valore iniziale
     return evaluateMinusSCEV(AddRec->getStart());
   }
   /*
-  * The following conditions checks the different types of operations we need to handle
+  * The following conditions check the different types of operations we need to handle
   */
-  // check fot an Add in the SCEV
+  // check for an Add in the SCEV
   if (const auto *AddExpr = dyn_cast<SCEVAddExpr>(scev)) {
     D2("\t\tAddExpr: " << *scev);
     APInt sum(bitwidth, 0);
@@ -310,66 +311,87 @@ APInt evaluateMinusSCEV(const SCEV *scev) {
     return opVal.sext(bitwidth);
   }
   
-  D2(" \t\tUnsable to handled SCEV type - RETURN 0");
+  D2(" \t\tUnable to handle SCEV type - RETURN 0");
   return APInt(bitwidth, 0);
+}
+
+/*
+* TODO ADD DESCRIPTION
+*/
+bool haveNegativeDistanceDiff(vector<Instruction*> storeInsts, vector<Instruction*> loadInsts, Loop &storeLoop, Loop &loadLoop, ScalarEvolution &SE, bool invert) {
+  for (auto *I1 : storeInsts) {
+    auto *store = dyn_cast<StoreInst>(I1);
+    
+    Value *storePtr = store->getPointerOperand();
+    auto *gepStore = dyn_cast<GetElementPtrInst>(storePtr);
+    
+    Value *storeBasePtr = gepStore->getPointerOperand();
+    D1("\tPointer operand 1: " << *storeBasePtr);
+    
+    for (auto *I2 : loadInsts) {
+      auto *load = dyn_cast<LoadInst>(I2);
+      
+      Value *loadPtr = load->getPointerOperand();
+      auto *gepLoad = dyn_cast<GetElementPtrInst>(loadPtr);
+      
+      Value *loadBasePtr = gepLoad->getPointerOperand();
+      D1("\tPointer operand 2: " << *loadBasePtr);
+      
+      // not working on the same array
+      if (storeBasePtr != loadBasePtr) {
+        D2("\tLoad and store working on different arrays");
+        continue;
+      }
+      
+      // Scalar evolution on pointer load and store instructions 
+      const SCEV *storeScev = SE.getSCEVAtScope(storePtr, &storeLoop);
+      const SCEV *loadScev = SE.getSCEVAtScope(loadPtr, &loadLoop);
+
+      // When working on the second possible negdep situation, operands in the MinusSCEV need to be inverted
+      // (we are checking stores from l2 and loads from l1, so the distances are inverted)
+      const SCEV *diff = !invert ? SE.getMinusSCEV(storeScev, loadScev) : SE.getMinusSCEV(loadScev, storeScev);
+
+      D2("\tMinus SCEV: " << *diff);
+      
+      // Check negative distance (works for constants)
+      if (SE.isKnownNegative(diff)) {
+        D2("\tKnown negative distance found");
+        return true;
+      }
+      
+      APInt minusConst = evaluateMinusSCEV(diff);
+      D2("\tValue of the MinusSCEV: " << minusConst);
+      
+      if ( minusConst.isNegative() ) {
+        D2 ("\tThe loops have negative distance dependencies")
+        return true;
+      }
+      
+    }
+  }
+  D2("\tVectors are empty or there are no dependencies between passed vectors")
+  return false;
 }
 
 /*
 * function that checks if the loops have negative distance dependencies
 */
-bool haveNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE) {
+bool haveNoNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE) {
+  // Retrieve vectors
   vector<Instruction*> storeInsts1 = getMemInst(l1, false); // get stores of loop1
+  vector<Instruction*> storeInsts2 = getMemInst(l2, false); // get stores of loop2
+  vector<Instruction*> loadInsts1 = getMemInst(l1, true);   // get loads of loop1  
   vector<Instruction*> loadInsts2 = getMemInst(l2, true);   // get loads of loop2  
 
-  for (auto *I1 : storeInsts1) {
-    auto *store = dyn_cast<StoreInst>(I1);
-
-    Value *storePtr = store->getPointerOperand();
-    auto *gep1 = dyn_cast<GetElementPtrInst>(storePtr);
-
-    Value *basePtr1 = gep1->getPointerOperand();
-    D1("\tPointer operand 1: " << *basePtr1);
-
-    for (auto *I2 : loadInsts2) {
-      auto *load = dyn_cast<LoadInst>(I2);
-
-      Value *loadPtr = load->getPointerOperand();
-      auto *gep2 = dyn_cast<GetElementPtrInst>(loadPtr);
-
-      Value *basePtr2 = gep2->getPointerOperand();
-      D1("\tPointer operand 2: " << *basePtr2);
-
-      // not working on the same array
-      if (basePtr1 != basePtr2) {
-        D2("\tLoad and store working on different arrays");
-        continue;
-      }
-
-      // Scalar evolution on pointer load and store instructions 
-      const SCEV *scev1 = SE.getSCEVAtScope(storePtr, &l1);
-      const SCEV *scev2 = SE.getSCEVAtScope(loadPtr, &l2);
-      const SCEV *diff = SE.getMinusSCEV(scev1, scev2);
-
-      D2("\tMinus SCEV: " << *diff);
-
-      // Check negative distance (works for constants)
-      if (SE.isKnownNegative(diff)) {
-        D2("\tKnown negative distance found - EXIT WITH TRUE");
-        return true;
-      }
-
-      APInt minusConst = evaluateMinusSCEV(diff);
-      D2("\tValue of the MinusSCEV: " << minusConst);
-
-      if ( minusConst.isNegative() ) {
-        D2 (" \tThe loops have negative distance dependencies - EXIT WITH TRUE ")
-        return true;
-      }
-
-    }
+  if (haveNegativeDistanceDiff(storeInsts1, loadInsts2, l1, l2, SE, false)
+  || haveNegativeDistanceDiff(storeInsts2, loadInsts1, l2, l1, SE, true)) {
+    D2("\tLoops have negative distance dependencies - EXIT WITH FALSE")
+    return false;
   }
-  D2(" \tLoops have no negative distance dependencies - EXIT WITH FALSE ")
-  return false;
+
+
+  D2("\tLoops have no negative distance dependencies - EXIT WITH TRUE")
+  return true;
 }
 
 /*
@@ -450,7 +472,10 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
     #endif
     
     // Checks for loop fusion
-    if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && !haveNegativeDistance(*loop1,*loop2,SE)) {
+    if (areAdjacentLoops(*loop1, *loop2)
+     && areControlFlowEq(*loop1, *loop2, DT, PDT)
+     && iterateEqualTimes(*loop1, *loop2, SE)
+     && haveNoNegativeDistance(*loop1,*loop2,SE)) {
       D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
       // fuse the loops
       fuseLoops(*loop1, *loop2, SE);
