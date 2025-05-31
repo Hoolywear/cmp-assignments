@@ -453,22 +453,42 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   // inoltre, bisogna anche spostare le istruzioni non legate alla induction v. del loop1 che si trovano nel latch 1: altrimenti eseguiranno dopo il body del loop2 inserito in mezzo
   // guarda metodi per splittare i basic block eventualmente
 
-  // Itera su predecessori per cambiare tutti i salti al branch 1
+  // iterate on latch2 predecessors to change the branch to latch1
   vector<BasicBlock*> preds;
   for (auto it = pred_begin(latch2), et = pred_end(latch2); it != et; ++it) {
     preds.push_back(*it);
   }
-  for () {
+  for (auto it = preds.begin(); it != preds.end(); ++it) {
     BasicBlock* Pred = *it;
+    // BranchInst *branch = dyn_cast<BranchInst>(Pred->getTerminator());
     BranchInst *branch = dyn_cast<BranchInst>(--(Pred->end()));
     // May be redundant
     if (!branch) {
       D2("No exiting branch found - could not fuse loops")
       return false;
     }
-
     branch->setSuccessor(0,latch1); 
   }
+
+  // check if the instructions in latch2 are related to the induction variable
+  for (auto it = latch2->begin(); it != latch2->end(); ) {
+    Instruction &I = *it++;
+    
+    // check if the instruction depends on the induction variable
+    bool usesIV = false;
+    for (Use &U : I.operands()) {
+      if (U.get() == InductionVariable::getInductionVariable(phi2)) {
+        usesIV = true;
+        break;
+      }
+    }
+
+    // If the instruction does not use the induction variable, we can move it to latch1
+    if (!usesIV) {
+      I.removeFromParent();
+      latch1->getInstList().push_back(&I);
+    }
+}
 
   // phi2->replaceAllUsesWith(phi1);
 
