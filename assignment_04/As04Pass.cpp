@@ -406,6 +406,16 @@ PHINode *getPHIFromHeader(Loop &L) {
   return nullptr;
 }
 
+
+vector<BasicBlock*> getLatchPreds( BasicBlock *latch ) {
+  vector<BasicBlock*> preds;
+  for (auto it = pred_begin(latch), et = pred_end(latch); it != et; ++it) {
+    preds.push_back(*it);
+  }
+  return preds;
+}
+
+
 /*
 * Function that fuse two loops
 */
@@ -453,12 +463,33 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   // inoltre, bisogna anche spostare le istruzioni non legate alla induction v. del loop1 che si trovano nel latch 1: altrimenti eseguiranno dopo il body del loop2 inserito in mezzo
   // guarda metodi per splittare i basic block eventualmente
 
-  // iterate on latch2 predecessors to change the branch to latch1
-  vector<BasicBlock*> preds;
-  for (auto it = pred_begin(latch2), et = pred_end(latch2); it != et; ++it) {
-    preds.push_back(*it);
+
+  // replace the uses of the second induction var.
+  phi2->replaceAllUsesWith(phi1);
+  // erase the PHI instruction from the second loop header
+  phi2->eraseFromParent();
+
+  // link the last body blocks of loop1 with the header of the first loop
+  vector<BasicBlock*> predsLatch1 = getLatchPreds(latch1);  // loop1 latch predecessors
+  
+  BasicBlock* L2LinkBB = l2.getHeader();
+
+  // if the header of the second loop is the exiting block, then is not rotated and we can
+  // link the only one internal successor as link block for loop 1 latch predecessors
+  if ( l2.isLoopExiting(L2LinkBB) ) {
+
+    BranchInst *HeaderBranch = dyn_cast<BranchInst>(--(L2LinkBB->end()));
+
+    // get the correct BB to link with
+    L2LinkBB = l2.contains(HeaderBranch->getSuccessor(0)) ? HeaderBranch->getSuccessor(0) : HeaderBranch->getSuccessor(1);
+
+    // erase the loop header if the loop is not rotated (not used anymore)
+    l2.getHeader()->eraseFromParent();
+
   }
-  for (auto it = preds.begin(); it != preds.end(); ++it) {
+  
+  // link first loop latch precedessors with single successor of second loop header
+  for (auto it = predsLatch1.begin(); it != predsLatch1.end(); ++it) {
     BasicBlock* Pred = *it;
     // BranchInst *branch = dyn_cast<BranchInst>(Pred->getTerminator());
     BranchInst *branch = dyn_cast<BranchInst>(--(Pred->end()));
@@ -467,37 +498,33 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
       D2("No exiting branch found - could not fuse loops")
       return false;
     }
-    branch->setSuccessor(0,latch1); 
+    branch->setSuccessor(0, L2LinkBB);
   }
 
-  // check if the instructions in latch2 are related to the induction variable
-  for (auto it = latch2->begin(); it != latch2->end(); ) {
-    Instruction &I = *it++;
-    
-    // check if the instruction depends on the induction variable
-    bool usesIV = false;
-    for (Use &U : I.operands()) {
-      if (U.get() == InductionVariable::getInductionVariable(phi2)) {
-        usesIV = true;
-        break;
-      }
+
+  // iterate on latch2 predecessors to change the branch to latch1
+  vector<BasicBlock*> predsLatch2 = getLatchPreds(latch2);
+  // iterate over the preds vector and set the successor to first loop latch
+  for (auto it = predsLatch2.begin(); it != predsLatch2.end(); ++it) {
+    BasicBlock* Pred = *it;
+    // BranchInst *branch = dyn_cast<BranchInst>(Pred->getTerminator());
+    BranchInst *branch = dyn_cast<BranchInst>(--(Pred->end()));
+    // May be redundant
+    if (!branch) {
+      D2("No exiting branch found - could not fuse loops")
+      return false;
     }
+    branch->setSuccessor(0,latch1);
+  }
 
-    // If the instruction does not use the induction variable, we can move it to latch1
-    if (!usesIV) {
-      I.removeFromParent();
-      latch1->getInstList().push_back(&I);
-    }
-}
+  // erase the second loop preheader (already without predecessors)
+  l2.getLoopPreheader()->eraseFromParent();
 
-  // phi2->replaceAllUsesWith(phi1);
+  // TODO - check instructions
 
-  // Move body2 before body1
-
-  // Link first loop's exiting block (and eventually guard) 
-  // to second loop's exit block
-
-  // Unlink second loop's other blocks from cfg
+  
+  // erase latch of the second loop (not used anymore)
+  latch2->eraseFromParent();
 
   return true;
 }
