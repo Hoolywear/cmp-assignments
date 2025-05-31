@@ -23,6 +23,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/DependenceAnalysis.h"
@@ -422,7 +423,54 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     D2("PHI 2: " << *phi2)
   }
 
-  phi2->replaceAllUsesWith(phi1);
+  // Get BBs needed to link the exiting edge from first loop to the BB after the second loop
+  BasicBlock *exitingBlock1 = l1.getExitingBlock();
+  BasicBlock *exitBlock2 = l2.getExitBlock();
+
+  // Get the branch from exiting block, to then change its destination
+  BranchInst *exitingBranch1 = dyn_cast<BranchInst>(--(exitingBlock1->end()));
+
+  // May be redundant
+  if (!exitingBranch1) {
+    D2("No exiting branch found - could not fuse loops")
+    return false;
+  }
+
+  if (!l1.contains(exitingBranch1->getSuccessor(0))) {
+    exitingBranch1->setSuccessor(0, exitBlock2);
+  } else {
+    exitingBranch1->setSuccessor(1, exitBlock2);
+  }
+
+  // Get both latches
+  BasicBlock *latch1 = l1.getLoopLatch();
+  BasicBlock *latch2 = l2.getLoopLatch();
+
+  // stiamo cercando di collegare direttamente il secondo latch al primo latch. in questo modo ci evitiamo lo smeno di spostare istruzioni che potrebbero essere non legate alla induction variable ma che comunque si trovano nel latch, in un altro blocco precedente.
+  // dunque, bisogna implementare un controllo che verifica che, oltre al salto ed all'incremento della vecchia induction variable, non ci siano altre istruzioni
+  // o meglio: possiamo direttamente rimuovere tutte le istruzioni relative all'induction variable vecchia (solo l'incremento?)
+
+  // inoltre, bisogna anche spostare le istruzioni non legate alla induction v. del loop1 che si trovano nel latch 1: altrimenti eseguiranno dopo il body del loop2 inserito in mezzo
+  // guarda metodi per splittare i basic block eventualmente
+
+  // Itera su predecessori per cambiare tutti i salti al branch 1
+  vector<BasicBlock*> preds;
+  for (auto it = pred_begin(latch2), et = pred_end(latch2); it != et; ++it) {
+    preds.push_back(*it);
+  }
+  for () {
+    BasicBlock* Pred = *it;
+    BranchInst *branch = dyn_cast<BranchInst>(--(Pred->end()));
+    // May be redundant
+    if (!branch) {
+      D2("No exiting branch found - could not fuse loops")
+      return false;
+    }
+
+    branch->setSuccessor(0,latch1); 
+  }
+
+  // phi2->replaceAllUsesWith(phi1);
 
   // Move body2 before body1
 
