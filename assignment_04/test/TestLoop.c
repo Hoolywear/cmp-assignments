@@ -1,31 +1,23 @@
-int foo(int a, int b, int x, int n) {
+int foo(int a, int b, int f, int n) {
 
     for (int i = 0; i < 5; ++i) {
         int f = 3 * a;
     }
  
     // int l = x*n; // uncomment for not adjacent loops
+    int x = 0;
+    while ( x < 5 ) {
 
-    while(x != 100){
-          x = b*2;
+      if ( a == b){
+        n = f + 999;
+      }
+      else{
+        n = f - 999;
+      }
+
+      x = x+1;
     }
 
-
-  int i = 0;
-  if (n > 0) {
-    do {
-      // Loop body
-      i += 1;
-    } while (i < n);
-  }
-
-  int k = 0;
-  if (n > 0) {
-    do {
-      // Loop body
-      k += 1;
-    } while (k < n);
-  }
 
     return 0;
 }
