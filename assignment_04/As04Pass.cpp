@@ -501,7 +501,6 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     branch->setSuccessor(0, L2LinkBB);
   }
 
-
   // iterate on latch2 predecessors to change the branch to latch1
   vector<BasicBlock*> predsLatch2 = getLatchPreds(latch2);
   // iterate over the preds vector and set the successor to first loop latch
@@ -516,6 +515,9 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     }
     branch->setSuccessor(0,latch1);
   }
+
+  // Beautify IR code
+  latch1->moveBefore(latch2);
 
   // erase the second loop preheader (already without predecessors)
   l2.getLoopPreheader()->eraseFromParent();
@@ -532,7 +534,7 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 /*
 * Function that fuses all loops in a given level of the loop nest
 */
-void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
+void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, LoopInfo &LI, Function &F, FunctionAnalysisManager &AM) {
   // Barrier check for empty vector
   if (currentLevelLoops.empty()) {
     D1("Fusion function received empty vector - exiting")
@@ -562,7 +564,18 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
       D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
       D1("=== LOOP FUSION ===")
       // fuse the loops
-      fuseLoops(*loop1, *loop2, SE);
+      if (fuseLoops(*loop1, *loop2, SE)) {
+        // 1. Ricalcola DominatorTree
+DT.recalculate(F);
+
+// 2. Ricalcola PostDominatorTree
+PDT.recalculate(F);
+
+// 3. Ricalcola LoopInfo (richiede DT aggiornato)
+LI.releaseMemory();
+LI.analyze(DT);
+
+      }
       // Remove second loop from vector because it has been fused with the first one
       currentLevelLoops.erase( loopIt+1 );
     } else {
@@ -592,7 +605,7 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
     errs() << '\n';
     #endif
     // If there are subloops, call the function recursively
-    fuseLevelNLoops(subLoops, DT, PDT, SE);
+    fuseLevelNLoops(subLoops, DT, PDT, SE, LI, F, AM);
   }
 }
 
@@ -632,7 +645,7 @@ struct As04Pass: PassInfoMixin<As04Pass> {
     #endif
 
     // call to the function that fuses loops
-    fuseLevelNLoops(functionLoops, DT, PDT, SE);
+    fuseLevelNLoops(functionLoops, DT, PDT, SE, LI, F, AM);
 
   	return PreservedAnalyses::all();
 }
