@@ -104,7 +104,7 @@ BasicBlock *getGuardBlock(Loop &L) {
 // }
 
 /*
-* The function checks if the guard blocks of the guarded loops have identical conditions
+* Function that checks if the guard blocks of the guarded loops have identical conditions
 */
 bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
   // get compare from branch instruction
@@ -124,7 +124,7 @@ bool checkGuardCondition(BranchInst *branch1, BranchInst *branch2) {
 
 
 /*
-* The function checks if loops are both guarded or not and if there are statements between the loops
+* Function that checks if loops are both guarded or not and if there are statements between the loops
 */
 bool areAdjacentLoops(Loop &l1, Loop &l2) {
   D2("--- START ADJACENCY CHECK ---")
@@ -135,13 +135,12 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
   // Logic to retrieve correct "adjacent BB candidates" depending if loops are both guarded or not
   if (guardBranch1 && guardBranch2 && checkGuardCondition(guardBranch1, guardBranch2)) {
     D2( "\tLoops are both guarded and with identical conditions" )
-    // iterate on the two successor BBs and verify if one exit of the first loop
-    // is the guard BB of the second loop
+    // iterate on the two successor BBs and verify if one exit of the first loop is the guard BB of the second loop
     for (auto S: guardBranch1->successors()) {
       if ( (guardBranch2->getParent()) == S ) {
         D3("\tFirst loop's guard exit is the second loop's guard BB " << *S)
     
-        // Check if first BB instruction is the branch condition
+        // check if first BB instruction is the branch condition
         if (dyn_cast<Instruction>(S->begin()) != dyn_cast<Instruction>(guardBranch2->getCondition())) {
           D2("\tLoops are not adjacent - EXIT CHECK WITH FALSE")
           return false;
@@ -154,7 +153,7 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
     
     D2( "\tBoth loops are not guarded" )
     
-    // The first loop must have a single exit block
+    // the first loop must have a single exit block
     if ( !l1.getExitBlock() ){
       D2("\tMore than one exit block for the loop - EXIT CHECK WITH FALSE")
       return false;
@@ -170,17 +169,16 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
       }
     }
   } else {
-    // Loops are not both guarded or both not guarded (acts as a fallback exit condition)
+    // loops are not both guarded or both not guarded (acts as a fallback exit condition)
     D2("\tNot both guarded or not guarded - EXIT CHECK WITH FALSE")
     return false;
   }
   
-  // All checks passed
+  // all checks passed
   D2 ( "\tLoops are adjacent - EXIT CHECK WITH TRUE" )
   return true;
 }
-      
-      
+       
 /*
 * Function that checks if the two loops are control-flow equivalent.
 * - if the loops are both guarded we need to check if the l1 guard dominates l2 guard AND l2 gaurd postdominates l1 guard
@@ -189,12 +187,12 @@ bool areAdjacentLoops(Loop &l1, Loop &l2) {
 bool areControlFlowEq(Loop &l1, Loop &l2, DominatorTree &DT, PostDominatorTree &PDT) {
   D2("--- START CTRL FLOW EQUIVALENCY CHECK ---")
   if ( l1.isGuarded() && l2.isGuarded() ) {
-    if ( DT.dominates(getGuardBlock(l1), getGuardBlock(l2)) && PDT.dominates( getGuardBlock(l2), getGuardBlock(l1) ) ) {
+    if ( DT.dominates(getGuardBlock(l1), getGuardBlock(l2)) && PDT.dominates(getGuardBlock(l2), getGuardBlock(l1)) ) {
       D2( "\tGuarded loops are control flow equivalent - EXIT CHECK WITH TRUE" )
       return true;
     }
   } else if ( !l1.isGuarded() && !l2.isGuarded() ) { 
-    if ( DT.dominates(l1.getLoopPreheader(), l2.getLoopPreheader()) && PDT.dominates( l2.getLoopPreheader(), l1.getLoopPreheader() ) ) {
+    if ( DT.dominates(l1.getLoopPreheader(), l2.getLoopPreheader()) && PDT.dominates(l2.getLoopPreheader(), l1.getLoopPreheader()) ) {
       D2( "\tLoops are control flow equivalent - EXIT CHECK WITH TRUE" )
       return true;
     } 
@@ -232,7 +230,7 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
 /*
 * Function that returns load/store instructions of the loop
-* if isLoad is true return Load instructions, otherwise return store instructions
+* if isLoad is true, return load instructions, otherwise return store instructions
 */
 vector<Instruction*> getMemInst(Loop &l, bool isLoad){
   vector<Instruction*> memInsts;
@@ -253,7 +251,6 @@ vector<Instruction*> getMemInst(Loop &l, bool isLoad){
   }
   return memInsts;
 }
-
 
 /*
 * Get a APInt from a MinusSCEV Expression (recursive version)
@@ -279,9 +276,9 @@ APInt evaluateMinusSCEV(const SCEV *scev) {
     // Per una ricorrenza, ritorna il valore iniziale
     return evaluateMinusSCEV(AddRec->getStart());
   }
-  /*
-  * The following conditions check the different types of operations we need to handle
-  */
+  
+  // The following conditions check the different types of operations we need to handle
+  
   // check for an Add in the SCEV
   if (const auto *AddExpr = dyn_cast<SCEVAddExpr>(scev)) {
     D2("\t\tAddExpr: " << *scev);
@@ -316,7 +313,7 @@ APInt evaluateMinusSCEV(const SCEV *scev) {
 }
 
 /*
-* TODO ADD DESCRIPTION
+* Function that checks if there are negative distance dependencies between two loops
 */
 bool haveNegativeDistanceDiff(vector<Instruction*> storeInsts, vector<Instruction*> loadInsts, Loop &storeLoop, Loop &loadLoop, ScalarEvolution &SE, bool invert) {
   for (auto *I1 : storeInsts) {
@@ -359,9 +356,11 @@ bool haveNegativeDistanceDiff(vector<Instruction*> storeInsts, vector<Instructio
         return true;
       }
       
+      // Evaluate the MinusSCEV to get the distance
       APInt minusConst = evaluateMinusSCEV(diff);
       D2("\tValue of the MinusSCEV: " << minusConst);
       
+      // If the distance is negative, then there is a negative distance dependency
       if ( minusConst.isNegative() ) {
         D2 ("\tThe loops have negative distance dependencies")
         return true;
@@ -374,7 +373,7 @@ bool haveNegativeDistanceDiff(vector<Instruction*> storeInsts, vector<Instructio
 }
 
 /*
-* function that checks if the loops have negative distance dependencies
+* Function that checks if the loops have negative distance dependencies
 */
 bool haveNoNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   // Retrieve vectors
@@ -383,12 +382,11 @@ bool haveNoNegativeDistance(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   vector<Instruction*> loadInsts1 = getMemInst(l1, true);   // get loads of loop1  
   vector<Instruction*> loadInsts2 = getMemInst(l2, true);   // get loads of loop2  
 
-  if (haveNegativeDistanceDiff(storeInsts1, loadInsts2, l1, l2, SE, false)
-  || haveNegativeDistanceDiff(storeInsts2, loadInsts1, l2, l1, SE, true)) {
+  // Checks if the loops have negative distance dependencies
+  if (haveNegativeDistanceDiff(storeInsts1, loadInsts2, l1, l2, SE, false) || haveNegativeDistanceDiff(storeInsts2, loadInsts1, l2, l1, SE, true)) {
     D2("\tLoops have negative distance dependencies - EXIT WITH FALSE")
     return false;
   }
-
 
   D2("\tLoops have no negative distance dependencies - EXIT WITH TRUE")
   return true;
@@ -408,19 +406,14 @@ PHINode *getPHIFromHeader(Loop &L) {
 }
 
 /*
-* The function fuse two loops
+* Function that fuse two loops
 */
 bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
-
-  // BasicBlock *h1 = l1.getHeader();
-  // BasicBlock *h2 = l2.getHeader();
-
-  // D3("Loop1 header: " << *h1)
-  // D3("Loop2 header: " << *h2)
-
+  // Retrieve phi nodes from loop headers
   PHINode *phi1 = getPHIFromHeader(l1);
   PHINode *phi2 = getPHIFromHeader(l2);
 
+  // Check if both loops have a PHI node in the header
   if (!phi1 || !phi2) {
     D2("Couldn't find one of the induction variable PHI nodes - aborting fusion")
     return false;
@@ -438,22 +431,20 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
   // Unlink second loop's other blocks from cfg
 
-
-
   return true;
 }
 
 /*
-* 
+* Function that fuses all loops in a given level of the loop nest
 */
 void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE) {
-
   // Barrier check for empty vector
   if (currentLevelLoops.empty()) {
     D1("Fusion function received empty vector - exiting")
     return;
   }
 
+  // Vector to store loops after fusion
   vector<Loop*> loopsAfterFusion;
 
   // Iterate over current level loops (in current loop nest)
@@ -472,19 +463,19 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
     #endif
     
     // Checks for loop fusion
-    if (areAdjacentLoops(*loop1, *loop2)
-     && areControlFlowEq(*loop1, *loop2, DT, PDT)
-     && iterateEqualTimes(*loop1, *loop2, SE)
-     && haveNoNegativeDistance(*loop1,*loop2,SE)) {
+    if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && haveNoNegativeDistance(*loop1,*loop2,SE)) {
       D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+      D1("=== LOOP FUSION ===")
       // fuse the loops
       fuseLoops(*loop1, *loop2, SE);
+      // Remove second loop from vector because it has been fused with the first one
       currentLevelLoops.erase( loopIt+1 );
     } else {
       D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
+      // Remove first loop from vector because it cannot be fused with the second one
       currentLevelLoops.erase( loopIt );
     }
-    // In both cases add first loop to fusion results vector, if not already present
+    // In both cases add first loop to fusion results vector, if not already present because it is either fused with the second one or it is the last loop in the vector
     if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
       loopsAfterFusion.push_back(loop1);
     }
@@ -498,12 +489,14 @@ void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDom
   
   // Recursive calls on each next loop nest
   for( auto L: loopsAfterFusion) {
+    // vector to store subloops
     vector<Loop*> subLoops = L->getSubLoopsVector();
     #ifdef DEBUG
     D2("RECURSIVE CALL ON SUBLOOPS FROM:")
     L->getHeader()->printAsOperand(errs(),false);
     errs() << '\n';
     #endif
+    // If there are subloops, call the function recursively
     fuseLevelNLoops(subLoops, DT, PDT, SE);
   }
 }
@@ -543,6 +536,7 @@ struct As04Pass: PassInfoMixin<As04Pass> {
     }
     #endif
 
+    // call to the function that fuses loops
     fuseLevelNLoops(functionLoops, DT, PDT, SE);
 
   	return PreservedAnalyses::all();
