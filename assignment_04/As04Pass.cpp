@@ -58,12 +58,8 @@ using namespace std;
   #define D3(x) llvm::outs().changeColor(D3_COLOR) << x << '\n'; outs().resetColor();
 #endif
 
-
 // function declaraion
 PHINode *getPHIFromHeader(Loop &);
-
-
-
 
 /*
 * Function that retrieves the guard BB from a loop, if present.
@@ -435,7 +431,9 @@ PHINode *getPHIFromHeader(Loop &L) {
   return nullptr;
 }
 
-
+/*
+* Function that retrieves the predecessors of a latch BB
+*/
 vector<BasicBlock*> getLatchPreds( BasicBlock *latch ) {
   vector<BasicBlock*> preds;
   for (auto it = pred_begin(latch), et = pred_end(latch); it != et; ++it) {
@@ -443,7 +441,6 @@ vector<BasicBlock*> getLatchPreds( BasicBlock *latch ) {
   }
   return preds;
 }
-
 
 /*
 * Function used to check if latches are movable and instructions inside do not cause conflicts when moved
@@ -460,12 +457,9 @@ bool isLatchDepFree(BasicBlock &latchBB) {
 
   // Iterate over BB instructions to search for some dependency inducing instructions
 
-
   D2("\tThere are other \"dependency-inducing\" instructions in Latch BB apart from the branch one - cannot fuse loops (soft fail)")
   return false;
 }
-
-
 
 /*
 * Function that fuse two loops
@@ -545,9 +539,7 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     D2 ( "\tThe header of the second loop is not the exiting block => is rotated " )
   }
 
-
   // delete the preheader of the second loop header 
-  // WHY HERE?
   l2.getLoopPreheader()->eraseFromParent();
 
   // link first loop latch precedessors (body loop1) with L2LinkBB (single successor of loop preheader if not rotated, the header otherwise)
@@ -676,6 +668,9 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 //     }
 // }
 
+/*
+* Function that fuses loops in a function
+*/
 bool mainFuseLoops(Function &F, FunctionAnalysisManager &AM) {
   bool globalChanged = false;
   bool changed;
