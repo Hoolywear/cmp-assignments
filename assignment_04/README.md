@@ -14,7 +14,7 @@ Affinché due loop siano considerati idonei alla fusione, devono soddisfare le s
 
 4. non devono avere distanza negativa.
 
-I controlli sopra elencati vengono effettuati nella funzione `fuseLevelNLoops`.
+I controlli sopra elencati vengono effettuati nella funzione `mainFuseLoops`.
 
 ## Loop adiacenti
 La funzione `areAdjacentLoops` verifica l'adiacenza nel controllo di flusso di due loop candidati alla loop fusion.
@@ -115,10 +115,26 @@ La funzione `fuseLoops` esegue la fusione di due loop seguendo questi passi:
 
 1. verifica che gli header di entrambi i loop contengano un *PHInode*, utilizzando la funzione `getPHIFromHeader`;
 
-2. individua il blocco di uscita (exiting block) del primo loop e ne conferma l’esistenza;
+2. recupera il blocco di uscita del primo loop e quello di uscita del secondo, controllando che il primo abbia un'istruzione di salto (*BranchInst*) valida;
 
-3. collega l’header del primo loop al blocco di uscita del secondo loop, creando un flusso di controllo tra i due;
+3. modifica il salto del primo loop per collegarlo direttamente all'uscita del secondo loop, concatenando i due cicli nel flusso di controllo;
 
-4. unisce i corpi dei due loop, collegando il corpo del primo loop a quello del secondo;
+4. verifica che i latch di entrambi i loop siano privi di dipendenze, usando la funzione`isLatchDepFree`; se uno dei due non lo è, la fusione viene interrotta;
 
-5. collega infine il corpo del secondo loop al latch del primo loop, completando la fusione.
+5. sostituisce l'induction variable del secondo loop con quella del primo, eliminando il *PHINode* del secondo loop;
+
+6. determina se il secondo loop è ruotato o meno:
+
+    1. se non ruotato, estrae il corpo effettivo come successore dell’header (che è anche l’exiting block), poi elimina l’header;
+    
+    2. se ruotato, mantiene l’header come ingresso;
+
+7. elimina il preheader del secondo loop, ormai inutile;
+
+8. collega i predecessori del latch del primo loop al corpo del secondo loop, creando continuità tra i due corpi. In questa fase viene utilizzata la funzione `getLatchPreds`, che restituisce tutti i blocchi che hanno un salto verso il latch del primo loop;
+
+9. collega i predecessori del latch del secondo loop al latch del primo, completando la chiusura del loop fuso. Anche qui viene usata `getLatchPreds` per ottenere i predecessori del latch del secondo loop;
+
+10. sposta il latch del primo loop prima del secondo nel codice IR, per mantenere l’ordine logico, e rimuove definitivamente il latch del secondo loop;
+
+11. restituisce *true* per indicare che la fusione è andata a buon fine.
