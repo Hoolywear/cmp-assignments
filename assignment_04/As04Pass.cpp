@@ -534,86 +534,153 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 /*
 * Function that fuses all loops in a given level of the loop nest
 */
-void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, LoopInfo &LI, Function &F, FunctionAnalysisManager &AM) {
-  // Barrier check for empty vector
-  if (currentLevelLoops.empty()) {
-    D1("Fusion function received empty vector - exiting")
-    return;
-  }
+// void fuseLevelNLoops(vector<Loop*> currentLevelLoops, DominatorTree &DT, PostDominatorTree &PDT, ScalarEvolution &SE, LoopInfo &LI, Function &F, FunctionAnalysisManager &AM) {
+//   // Barrier check for empty vector
+//   if (currentLevelLoops.empty()) {
+//     D1("Fusion function received empty vector - exiting")
+//     return;
+//   }
 
-  // Vector to store loops after fusion
-  vector<Loop*> loopsAfterFusion;
+//   // Vector to store loops after fusion
+//   vector<Loop*> loopsAfterFusion;
 
-  // Iterate over current level loops (in current loop nest)
-  auto loopIt = currentLevelLoops.begin();
-
-  // Skip checks if only one element in vector
-  while (loopIt != currentLevelLoops.end()-1) {
-    D1("=== ENTERING LOOP PAIR ANALYSIS ITERATION ===")
-    // Get first two adjacent loops in vector
-    Loop *loop1 = *loopIt;
-    Loop *loop2 = *(loopIt + 1);
+//   bool changed = false;
+//   do {
+//     changed = false;
+//     // Iterate over current level loops (in current loop nest)
+//     auto loopIt = currentLevelLoops.begin();
     
-    #ifdef DEBUG
-    D1("Loop1 header: "); loop1->getHeader()->printAsOperand(errs(), false); errs() << '\n';
-    D1("Loop2 header: "); loop2->getHeader()->printAsOperand(errs(), false); errs() << '\n';
-    #endif
+//     // Skip checks if only one element in vector
+//     while (loopIt != currentLevelLoops.end()-1) {
+//       D1("=== ENTERING LOOP PAIR ANALYSIS ITERATION ===")
+//       // Get first two adjacent loops in vector
+//       Loop *loop1 = *loopIt;
+//       Loop *loop2 = *(loopIt + 1);
+      
+//       #ifdef DEBUG
+//       D1("Loop1 header: "); loop1->getHeader()->printAsOperand(errs(), false); errs() << '\n';
+//       D1("Loop2 header: "); loop2->getHeader()->printAsOperand(errs(), false); errs() << '\n';
+//       #endif
+      
+//       // Checks for loop fusion
+//       if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && haveNoNegativeDistance(*loop1,*loop2,SE)) {
+//         D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+//         D1("=== LOOP FUSION ===")
+//         // fuse the loops
+//         if (fuseLoops(*loop1, *loop2, SE)) {
+//           AM.invalidate(F, llvm::PreservedAnalyses::none());
+//           DT.recalculate(F);
+//           PDT.recalculate(F);
+//           LI.releaseMemory();
+//           LI.analyze(DT);
+//           SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+
+//           currentLevelLoops.erase(next(loopIt));
+//           changed = true;
+//           break;
+//         }
+//         // Remove second loop from vector because it has been fused with the first one
+//         // currentLevelLoops.erase( loopIt+1 );
+//       } else {
+//         D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
+//         // Remove first loop from vector because it cannot be fused with the second one
+//         currentLevelLoops.erase( loopIt );
+//       }
+//       // In both cases add first loop to fusion results vector, if not already present because it is either fused with the second one or it is the last loop in the vector
+//       if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
+//         loopsAfterFusion.push_back(loop1);
+//       }
+//       D1("=== END OF ANALYSIS ITERATION ===")
+//     }
+//     // Last element in vector (also if parameter already came with a single loop inside)
+//     D1("=== ONE LOOP LEFT - STOP ANALYZING ===")
+//     if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), *loopIt) == loopsAfterFusion.end()) {
+//       loopsAfterFusion.push_back(*loopIt);
+//     }
+//   } while (changed);
     
-    // Checks for loop fusion
-    if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && haveNoNegativeDistance(*loop1,*loop2,SE)) {
-      D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
-      D1("=== LOOP FUSION ===")
-      // fuse the loops
-      if (fuseLoops(*loop1, *loop2, SE)) {
-        // 1. Ricalcola DominatorTree
-DT.recalculate(F);
+//     // Recursive calls on each next loop nest
+//     for( auto L: loopsAfterFusion) {
+//       // vector to store subloops
+//       vector<Loop*> subLoops = L->getSubLoopsVector();
+//       #ifdef DEBUG
+//       D2("RECURSIVE CALL ON SUBLOOPS FROM:")
+//       L->getHeader()->printAsOperand(errs(),false);
+//       errs() << '\n';
+//       #endif
+//       // If there are subloops, call the function recursively
+//       fuseLevelNLoops(subLoops, DT, PDT, SE, LI, F, AM);
+//     }
+// }
 
-// 2. Ricalcola PostDominatorTree
-PDT.recalculate(F);
+bool mainFuseLoops(Function &F, FunctionAnalysisManager &AM) {
+  bool globalChanged = false;
 
-// 3. Ricalcola LoopInfo (richiede DT aggiornato)
-LI.releaseMemory();
-LI.analyze(DT);
-
-      }
-      // Remove second loop from vector because it has been fused with the first one
-      currentLevelLoops.erase( loopIt+1 );
-    } else {
-      D1("LOOPS CANNOT BE FUSED, REMOVE LOOP1 FROM ARRAY AND CONTINUE ITERATING")
-      // Remove first loop from vector because it cannot be fused with the second one
-      currentLevelLoops.erase( loopIt );
-    }
-    // In both cases add first loop to fusion results vector, if not already present because it is either fused with the second one or it is the last loop in the vector
-    if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), loop1) == loopsAfterFusion.end()) {
-      loopsAfterFusion.push_back(loop1);
-    }
-    D1("=== END OF ANALYSIS ITERATION ===")
-  }
-  // Last element in vector (also if parameter already came with a single loop inside)
-  D1("=== ONE LOOP LEFT - STOP ANALYZING ===")
-  if (find(loopsAfterFusion.begin(), loopsAfterFusion.end(), *loopIt) == loopsAfterFusion.end()) {
-    loopsAfterFusion.push_back(*loopIt);
-  }
+  // Calculate informative structures
+  // Get loop info from function
+  LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+  // Dominators tree
+  DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
+  // Post-dominator tree
+  PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
+  // Scalar Evolution Analysis
+  ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
   
-  // Recursive calls on each next loop nest
-  for( auto L: loopsAfterFusion) {
-    // vector to store subloops
-    vector<Loop*> subLoops = L->getSubLoopsVector();
-    #ifdef DEBUG
-    D2("RECURSIVE CALL ON SUBLOOPS FROM:")
-    L->getHeader()->printAsOperand(errs(),false);
-    errs() << '\n';
-    #endif
-    // If there are subloops, call the function recursively
-    fuseLevelNLoops(subLoops, DT, PDT, SE, LI, F, AM);
-  }
-}
+  bool changed = false;
+  do {
+    changed = false;
 
-//-----------------------------------------------------------------------------
-// TestPass implementation
-//-----------------------------------------------------------------------------
-// No need to expose the internals of the pass to the outside world - keep
-// everything in an anonymous namespace.
+    // Retrieve updated top level loops
+    vector<Loop*> functionLoops = LI.getTopLevelLoops();
+    // Get proper loop ordering
+    reverse(functionLoops.begin(), functionLoops.end());
+
+    if (functionLoops.empty()) {
+      //empty vector: no loops inside function
+      return globalChanged;
+    }
+    
+    // Skip checks if only one element in vector
+    for (auto loopIt = functionLoops.begin(); loopIt != prev(functionLoops.end()); ++loopIt) {
+      D1("=== ENTERING LOOP PAIR ANALYSIS ITERATION ===")
+      // Get first two adjacent loops in vector
+      Loop *loop1 = *loopIt;
+      Loop *loop2 = *(next(loopIt));
+      
+      #ifdef DEBUG
+      D1("Loop1 header: "); loop1->getHeader()->printAsOperand(errs(), false); errs() << '\n';
+      D1("Loop2 header: "); loop2->getHeader()->printAsOperand(errs(), false); errs() << '\n';
+      #endif
+      
+      // Checks for loop fusion
+      if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && haveNoNegativeDistance(*loop1,*loop2,SE)) {
+        D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+        D1("=== LOOP FUSION ===")
+        // fuse the loops
+        if (fuseLoops(*loop1, *loop2, SE)) {
+          D1("hola")
+          // Remove second loop from vector because it has been fused with the first one
+          functionLoops.erase(next(loopIt));
+          changed = true;
+          globalChanged = true;
+          break;
+        }
+      } else {
+        D1("LOOPS CANNOT BE FUSED, CONTINUE ITERATING")
+      }
+      D1("=== END OF ANALYSIS ITERATION ===")
+    }
+    AM.invalidate(F, llvm::PreservedAnalyses::none());
+  } while (changed);
+
+  return globalChanged;
+}
+  
+  //-----------------------------------------------------------------------------
+  // TestPass implementation
+  //-----------------------------------------------------------------------------
+  // No need to expose the internals of the pass to the outside world - keep
+  // everything in an anonymous namespace.
 namespace {
 
 // New PM implementation
@@ -623,6 +690,7 @@ struct As04Pass: PassInfoMixin<As04Pass> {
   
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM) {
 
+  /*
     // Get loop info from function
     LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
     // Dominators tree
@@ -646,8 +714,11 @@ struct As04Pass: PassInfoMixin<As04Pass> {
 
     // call to the function that fuses loops
     fuseLevelNLoops(functionLoops, DT, PDT, SE, LI, F, AM);
+  */
 
-  	return PreservedAnalyses::all();
+    bool changed = mainFuseLoops(F, AM);
+
+  	return changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
 }
 
   // Without isRequired returning true, this pass will be skipped for functions
