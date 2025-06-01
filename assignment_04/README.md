@@ -6,13 +6,13 @@ Questi cicli possono quindi essere fusi in un unico loop, preservando il comport
 Il codice implementa un *function pass* che analizza coppie di loop all'interno di ciascuna funzione per determinare se possono essere fusi in un singolo ciclo, mantenendo la correttezza semantica del programma.
 Affinché due loop siano considerati idonei alla fusione, devono soddisfare le seguenti condizioni:
 
-1. devono essere adiacenti 
+1. devono essere adiacenti;
 
-2. devono iterare lo stesso numero di volte
+2. devono iterare lo stesso numero di volte;
 
-3. devono essere aderenti nel controllo di flusso (control-flow equivalent)
+3. devono essere aderenti nel controllo di flusso (control-flow equivalent);
 
-4. non devono avere distanza negativa.
+4. non devono avere distanza negativa;
 
 I controlli sopra elencati vengono effettuati nella funzione `mainFuseLoops`.
 
