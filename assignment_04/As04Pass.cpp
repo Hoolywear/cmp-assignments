@@ -445,35 +445,24 @@ vector<BasicBlock*> getLatchPreds( BasicBlock *latch ) {
 }
 
 
-
-void moveIndependentInstsFromBB(BasicBlock &FromBB, BasicBlock &DestBB) {
-
-  BranchInst *branch = dyn_cast<BranchInst>(--(FromBB.end()));
-
-  // Check if the FromBB only contains a branch instruction
-  if (FromBB.size() == 1 && branch ) {
-    D2("\tThe source BB has only a branch instruction => NO NEED TO MOVE INSTRUCTIONS")
-    D2("\tInstruction: " << *branch)
-    return;
+/*
+* Function used to check if latches are movable and instructions inside do not cause conflicts when moved
+*/
+bool isLatchDepFree(BasicBlock &latchBB) {
+  // In normal cases, instructions in latches are always two: an icmp used in the branch (if is exiting BB, so rotated loop)
+  // or the "increment" (decrement) of the induction variable (if not rotated). This means that whenever
+  // we find more than 2 instructions in the BB, we "soft fail" instead of trying to sort the problematic 
+  // instructions out (casistics are too specific to be checked)
+  if (latchBB.size() < 3 ) {
+    D2("\tLatch BB does not contain dependence inducing instructions - return true")
+    return true;
   }
 
-  D2("\tMoving instructions from: " << FromBB.getName() << " to " << DestBB.getName())
+  // Iterate over BB instructions to search for some dependency inducing instructions
 
-  // Collect instructions to move (excluding the terminator)
-  std::vector<Instruction*> toMove;
-  for (Instruction &I : FromBB) {
-    if (&I == branch) 
-      break; // Skip terminator
-    toMove.push_back(&I);
-  }
 
-  // Move them before the terminator of DestBB
-  Instruction *insertPoint = DestBB.getTerminator();
-  for (Instruction *I : toMove) {
-    I->moveBefore(insertPoint);
-  }
-
-  D2("\tMoved " << toMove.size() << " instructions.")
+  D2("\tThere are other \"dependency-inducing\" instructions in Latch BB apart from the branch one - cannot fuse loops (soft fail)")
+  return false;
 }
 
 
@@ -489,7 +478,7 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
   // Check if both loops have a PHI node in the header
   if (!phi1 || !phi2) {
-    D2("Couldn't find one of the induction variable PHI nodes - aborting fusion")
+    D2("Couldn't find one of the induction variable PHI nodes - cannot fuse loops")
     return false;
   } else {
     D2("PHI 1: " << *phi1)
@@ -505,7 +494,7 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
   // May be redundant
   if (!exitingBranch1) {
-    D2("No exiting branch found - could not fuse loops")
+    D2("No exiting branch found - cannot fuse loops")
     return false;
   }
 
@@ -518,6 +507,11 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   // Get both latches
   BasicBlock *latch1 = l1.getLoopLatch();
   BasicBlock *latch2 = l2.getLoopLatch();
+
+  if(!isLatchDepFree(*latch1) || !isLatchDepFree(*latch2)) {
+    D2("Either one of the latches is not dependency free - cannot fuse loops")
+    return false;
+  }
 
   // replace the uses of the second induction var.
   phi2->replaceAllUsesWith(phi1);
@@ -563,7 +557,7 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     BranchInst *branch = dyn_cast<BranchInst>(--(Pred->end()));
     // May be redundant
     if (!branch) {
-      D2("No exiting branch found - could not fuse loops")
+      D2("No exiting branch found - cannot fuse loops")
       return false;
     }
     branch->setSuccessor(0, L2LinkBB);
@@ -580,7 +574,7 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     BranchInst *branch = dyn_cast<BranchInst>(--(Pred->end()));
     // May be redundant
     if (!branch) {
-      D2("No exiting branch found - could not fuse loops")
+      D2("No exiting branch found - cannot fuse loops")
       return false;
     }
     branch->setSuccessor(0,latch1);
