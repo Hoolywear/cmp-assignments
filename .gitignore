@@ -34,3 +34,8 @@ rubber.cache
 # VSCode workspace configurations
 
 .vscode/
+
+# Images and Graphviz files (to prevent repository bloating)
+
+images/
+*.dot
