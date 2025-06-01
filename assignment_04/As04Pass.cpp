@@ -58,6 +58,13 @@ using namespace std;
   #define D3(x) llvm::outs().changeColor(D3_COLOR) << x << '\n'; outs().resetColor();
 #endif
 
+
+// function declaraion
+PHINode *getPHIFromHeader(Loop &);
+
+
+
+
 /*
 * Function that retrieves the guard BB from a loop, if present.
 */
@@ -221,7 +228,29 @@ bool iterateEqualTimes(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   D2("\tminus: " << SE.getMinusSCEV(itTimes1,itTimes2)->isZero())
 
   if (itTimes1 == itTimes2) {
-    D2("\tLoops iterate the same amount of times - EXIT CHECK WITH TRUE")
+    /*
+    * Check same initial value for induction variable
+    */
+    // get loops PHI nodes
+    PHINode *phi1 = getPHIFromHeader(l1);
+    PHINode *phi2 = getPHIFromHeader(l2);
+
+    if (!phi1 || !phi2) {
+      D2("\tCould not retrieve one of the PHI nodes - EXIT CHECK WITH FALSE")
+      return false;
+    }
+    // get loop start point SCEV for the induction variable
+    const SCEV *init1 = SE.getSCEV(phi1->getIncomingValueForBlock(l1.getLoopPreheader()));
+    const SCEV *init2 = SE.getSCEV(phi2->getIncomingValueForBlock(l2.getLoopPreheader()));
+
+    // if start point is different return FALSE
+    if (init1 != init2) {
+      D2("\tLoops have different start values for induction variable - EXIT CHECK WITH FALSE")
+      D2("\tInit1: " << *init1 << ", Init2: " << *init2)
+      return false;
+    }
+
+    D2("\tLoops iterate the same amount of times from same start point - EXIT CHECK WITH TRUE")
     return true;
   }
   
@@ -416,10 +445,44 @@ vector<BasicBlock*> getLatchPreds( BasicBlock *latch ) {
 }
 
 
+
+void moveIndependentInstsFromBB(BasicBlock &FromBB, BasicBlock &DestBB) {
+
+  BranchInst *branch = dyn_cast<BranchInst>(--(FromBB.end()));
+
+  // Check if the FromBB only contains a branch instruction
+  if (FromBB.size() == 1 && branch ) {
+    D2("\tThe source BB has only a branch instruction => NO NEED TO MOVE INSTRUCTIONS")
+    D2("\tInstruction: " << *branch)
+    return;
+  }
+
+  D2("\tMoving instructions from: " << FromBB.getName() << " to " << DestBB.getName())
+
+  // Collect instructions to move (excluding the terminator)
+  std::vector<Instruction*> toMove;
+  for (Instruction &I : FromBB) {
+    if (&I == branch) 
+      break; // Skip terminator
+    toMove.push_back(&I);
+  }
+
+  // Move them before the terminator of DestBB
+  Instruction *insertPoint = DestBB.getTerminator();
+  for (Instruction *I : toMove) {
+    I->moveBefore(insertPoint);
+  }
+
+  D2("\tMoved " << toMove.size() << " instructions.")
+}
+
+
+
 /*
 * Function that fuse two loops
 */
 bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
+
   // Retrieve phi nodes from loop headers
   PHINode *phi1 = getPHIFromHeader(l1);
   PHINode *phi2 = getPHIFromHeader(l2);
@@ -456,14 +519,6 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   BasicBlock *latch1 = l1.getLoopLatch();
   BasicBlock *latch2 = l2.getLoopLatch();
 
-  // stiamo cercando di collegare direttamente il secondo latch al primo latch. in questo modo ci evitiamo lo smeno di spostare istruzioni che potrebbero essere non legate alla induction variable ma che comunque si trovano nel latch, in un altro blocco precedente.
-  // dunque, bisogna implementare un controllo che verifica che, oltre al salto ed all'incremento della vecchia induction variable, non ci siano altre istruzioni
-  // o meglio: possiamo direttamente rimuovere tutte le istruzioni relative all'induction variable vecchia (solo l'incremento?)
-
-  // inoltre, bisogna anche spostare le istruzioni non legate alla induction v. del loop1 che si trovano nel latch 1: altrimenti eseguiranno dopo il body del loop2 inserito in mezzo
-  // guarda metodi per splittare i basic block eventualmente
-
-
   // replace the uses of the second induction var.
   phi2->replaceAllUsesWith(phi1);
   // erase the PHI instruction from the second loop header
@@ -478,17 +533,30 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
   // link the only one internal successor as link block for loop 1 latch predecessors
   if ( l2.isLoopExiting(L2LinkBB) ) {
 
+    D2( "\tThe header of the loop2 is the exiting block " )
+
     BranchInst *HeaderBranch = dyn_cast<BranchInst>(--(L2LinkBB->end()));
 
     // get the correct BB to link with
     L2LinkBB = l2.contains(HeaderBranch->getSuccessor(0)) ? HeaderBranch->getSuccessor(0) : HeaderBranch->getSuccessor(1);
 
     // erase the loop header if the loop is not rotated (not used anymore)
-    l2.getHeader()->eraseFromParent();
+    BasicBlock* header2 = l2.getHeader();
 
+    // erase loop2 header (not used anymore)
+    header2->dropAllReferences();
+    header2->eraseFromParent();
+
+  } else {
+    D2 ( "\tThe header of the second loop is not the exiting block => is rotated " )
   }
-  
-  // link first loop latch precedessors with single successor of second loop header
+
+
+  // delete the preheader of the second loop header 
+  // WHY HERE?
+  l2.getLoopPreheader()->eraseFromParent();
+
+  // link first loop latch precedessors (body loop1) with L2LinkBB (single successor of loop preheader if not rotated, the header otherwise)
   for (auto it = predsLatch1.begin(); it != predsLatch1.end(); ++it) {
     BasicBlock* Pred = *it;
     // BranchInst *branch = dyn_cast<BranchInst>(Pred->getTerminator());
@@ -500,6 +568,8 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     }
     branch->setSuccessor(0, L2LinkBB);
   }
+
+  D2( "\tSuccessors of loop 1 latch predecessors set correctly " )
 
   // iterate on latch2 predecessors to change the branch to latch1
   vector<BasicBlock*> predsLatch2 = getLatchPreds(latch2);
@@ -516,17 +586,16 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
     branch->setSuccessor(0,latch1);
   }
 
+  D2 ( "\tBranch from latch 2 predecessors to loop 1 latch done correctly " )
+
   // Beautify IR code
   latch1->moveBefore(latch2);
 
-  // erase the second loop preheader (already without predecessors)
-  l2.getLoopPreheader()->eraseFromParent();
-
-  // TODO - check instructions
-
-  
   // erase latch of the second loop (not used anymore)
+  latch2->dropAllReferences();
   latch2->eraseFromParent();
+
+  D2( "\tFusion for two loops completed " )
 
   return true;
 }
