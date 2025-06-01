@@ -49,7 +49,7 @@ Nel caso i due loop non siano guarded, si verifica che:
 Se solo uno dei due loop è guarded, la funzione restituisce direttamente *false*, in quanto la fusione è ammessa solo se i loop sono o entrambi guarded o entrambi non guarded.
 
 ## Numero di iterazioni uguali
-La funzione `iterateEqualTimes` confronta il numero di iterazioni dei due loop candidati.
+La funzione `iterateEqualTimes` confronta il numero di iterazioni dei due loop candidati e che abbiano stesso start point.
 
 La funzione utilizza l’analisi *ScalarEvolution (SE)*, che fornisce una rappresentazione simbolica del numero di iterazioni di un ciclo sotto forma di oggetti *SCEV*.
 
