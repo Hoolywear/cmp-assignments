@@ -1,23 +1,21 @@
 int foo(int a, int b, int x, int n) {
 
-    for (int i = 0; i < a; i++) {
-      int x = b + 333;
+  for (int i = 0; i < a; i++) {
+    x = b + 333;
+  }
 
-      while (x < 3) {
-        int y = b + 111;
-      }
-    }
+  for (int j = 0; j < a; j++) {
+    x = b + 999;
+  }
 
-    for (int i = 0; i < a; i++) {
-      int x = b + 666;
+  for (int j = 0; j < a; j++) {
+    x = j + 777;
+  }
 
-      for (int j = 0; j < a; j++) {
-      int x = b + 999;
-    }
-    for (int j = 0; j < a; j++) {
-      int x = b + 777;
-    }
-    }
+    for (int i = 1; i <= a; i++) {
+    int popo = i + 5757;
+  }
+  
 
-    return 0;
+  return 0;
 }
