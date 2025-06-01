@@ -1,20 +1,15 @@
-int foo(int size, int A[]) {
+int foo(int a, int b, int size) {
 
     for (int i = 1; i <= size; i++) {
-      A[i-1] = i;
-      if ( size == 10 ){
-        int b = A[i-1];
-        continue;
-      }
-      else {
-        int c = size;
-        continue;
-      }
+      int x = b + 33333;
     }
 
     for (int j = 0 ; j < size; j++) {
+      int k = size + 66666;
+    }
+
+    for (int k = 0; k < size; k++) {
       int k = size + 99999;
-      A[j] = A[j];
     }
 
     return 0;
