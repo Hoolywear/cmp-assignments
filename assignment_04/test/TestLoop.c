@@ -6,7 +6,7 @@ int foo(int a, int b, int f, int n) {
  
     // int l = x*n; // uncomment for not adjacent loops
     int x = 0;
-    while ( x < 5 ) {
+    do {
 
       if ( a == b){
         n = f + 999;
@@ -15,7 +15,12 @@ int foo(int a, int b, int f, int n) {
         n = f - 999;
       }
 
-      x = x+1;
+      x++;
+    } while( x<=5 );
+
+
+    for (int i = 0; i < 5; ++i) {
+      int f = 3 * a;
     }
 
 
