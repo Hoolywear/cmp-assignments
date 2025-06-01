@@ -615,35 +615,36 @@ bool fuseLoops(Loop &l1, Loop &l2, ScalarEvolution &SE) {
 
 bool mainFuseLoops(Function &F, FunctionAnalysisManager &AM) {
   bool globalChanged = false;
+  bool changed;
 
-  // Calculate informative structures
-  // Get loop info from function
-  LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
-  // Dominators tree
-  DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
-  // Post-dominator tree
-  PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
-  // Scalar Evolution Analysis
-  ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
-  
-  bool changed = false;
   do {
     changed = false;
 
+    // Calculate informative structures
+    // Get loop info from function (must be refreshed after each change)
+    LoopInfo &LI = AM.getResult<LoopAnalysis>(F);
+    // Dominators tree
+    DominatorTree &DT = AM.getResult<DominatorTreeAnalysis>(F);
+    // Post-dominator tree
+    PostDominatorTree &PDT = AM.getResult<PostDominatorTreeAnalysis>(F);
+    // Scalar Evolution Analysis
+    ScalarEvolution &SE = AM.getResult<ScalarEvolutionAnalysis>(F);
+    
     // Retrieve updated top level loops
     vector<Loop*> functionLoops = LI.getTopLevelLoops();
-    // Get proper loop ordering
-    reverse(functionLoops.begin(), functionLoops.end());
-
-    if (functionLoops.empty()) {
-      //empty vector: no loops inside function
+    
+    if (functionLoops.size() < 2) {
+      // Not enough loops to fuse
       return globalChanged;
     }
     
-    // Skip checks if only one element in vector
+    // Get proper loop ordering (process from inner to outer)
+    reverse(functionLoops.begin(), functionLoops.end());
+
+    // Iterate through adjacent loop pairs
     for (auto loopIt = functionLoops.begin(); loopIt != prev(functionLoops.end()); ++loopIt) {
       D1("=== ENTERING LOOP PAIR ANALYSIS ITERATION ===")
-      // Get first two adjacent loops in vector
+      
       Loop *loop1 = *loopIt;
       Loop *loop2 = *(next(loopIt));
       
@@ -653,16 +654,22 @@ bool mainFuseLoops(Function &F, FunctionAnalysisManager &AM) {
       #endif
       
       // Checks for loop fusion
-      if (areAdjacentLoops(*loop1, *loop2) && areControlFlowEq(*loop1, *loop2, DT, PDT) && iterateEqualTimes(*loop1, *loop2, SE) && haveNoNegativeDistance(*loop1,*loop2,SE)) {
-        D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION, REMOVE LOOP2 FROM ARRAY, BREAK AND REPEAT")
+      if (areAdjacentLoops(*loop1, *loop2) && 
+          areControlFlowEq(*loop1, *loop2, DT, PDT) && 
+          iterateEqualTimes(*loop1, *loop2, SE) && 
+          haveNoNegativeDistance(*loop1,*loop2,SE)) {
+        
+        D1("ALL CHECKS GOOD: PROCEED WITH LOOP FUSION")
         D1("=== LOOP FUSION ===")
-        // fuse the loops
+        
+        // Try to fuse the loops
         if (fuseLoops(*loop1, *loop2, SE)) {
-          D1("hola")
-          // Remove second loop from vector because it has been fused with the first one
-          functionLoops.erase(next(loopIt));
+          D1("Fusion successful")
           changed = true;
           globalChanged = true;
+          
+          // Invalidate analyses and break to reprocess all loops
+          AM.invalidate(F, llvm::PreservedAnalyses::none());
           break;
         }
       } else {
@@ -670,7 +677,6 @@ bool mainFuseLoops(Function &F, FunctionAnalysisManager &AM) {
       }
       D1("=== END OF ANALYSIS ITERATION ===")
     }
-    AM.invalidate(F, llvm::PreservedAnalyses::none());
   } while (changed);
 
   return globalChanged;
